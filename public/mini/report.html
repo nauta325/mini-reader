@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>학습 리포트</title>
+<meta name="theme-color" content="#5b6ee0">
+<link rel="stylesheet" href="/mini/mini.css">
+</head>
+<body>
+<div class="wrap mid">
+  <div class="btns noprint">
+    <a class="btn ghost" href="/mini/students.html">← 학생 관리</a>
+    <button class="primary" onclick="window.print()" style="margin-left:auto">🖨 인쇄 / PDF 저장</button>
+  </div>
+  <div class="card" id="report">불러오는 중...</div>
+</div>
+
+<script>
+var API = window.location.origin;
+var PASS = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--pass-score')) || 70;
+// 학원 이름 — "우리 학원 이름으로 바꿔줘" 하기 좋게 여기 한 줄
+var ACADEMY = '우리학원';   // 학원 이름 — 여기 한 줄만 바꾸면 됩니다
+
+function qs(k) { return new URLSearchParams(location.search).get(k) || ''; }
+var student = qs('student');
+
+function pill(x) { return x ? '<span class="pill ' + (x.percent >= PASS ? 'p-good' : 'p-bad') + '">' + x.percent + '%</span>' : '<span class="muted">–</span>'; }
+
+if (!student) {
+  document.getElementById('report').innerHTML = '<div class="muted">학생을 지정해 주세요 (?student=이름)</div>';
+} else {
+  fetch(API + '/api/mini-reader?action=overview&student=' + encodeURIComponent(student)).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    var s = (d.students || [])[0];
+    if (!s) { document.getElementById('report').innerHTML = '<div class="muted">해당 학생 기록이 없어요</div>'; return; }
+    render(s);
+  }).catch(function (e) { document.getElementById('report').innerHTML = '오류: ' + e.message; });
+}
+
+function render(s) {
+  var books = s.books || [];
+  var assigned = books.length;
+  var done = 0, q1sum = 0, q1cnt = 0, q2sum = 0, q2cnt = 0;
+  books.forEach(function (b) {
+    var q = b.quizzes || {};
+    if (q[2] && q[2].percent >= PASS) done++;
+    if (q[1]) { q1sum += q[1].percent; q1cnt++; }
+    if (q[2]) { q2sum += q[2].percent; q2cnt++; }
+  });
+  var avg = (q1cnt + q2cnt) ? Math.round((q1sum + q2sum) / (q1cnt + q2cnt)) : null;
+
+  var rows = books.map(function (b) {
+    var q = b.quizzes || {};
+    var word = q[0] ? '<span class="pill p-good">완료</span>' : '<span class="muted">–</span>';
+    var rec = b.audio ? '<a href="' + b.audio + '" target="_blank" class="noprint" style="color:var(--brand);text-decoration:none">▶ 듣기</a>' : '<span class="muted">–</span>';
+    var star = q[2] && q[2].percent >= PASS ? ' 🎉' : '';
+    return '<tr><td>' + esc(b.title) + star + (b.level ? '<div class="muted" style="font-size:11px">' + esc(b.level) + '</div>' : '') + '</td>'
+      + '<td style="text-align:center">' + word + '</td>'
+      + '<td style="text-align:center">' + pill(q[1]) + '</td>'
+      + '<td style="text-align:center">' + pill(q[2]) + '</td>'
+      + '<td style="text-align:center">' + rec + '</td></tr>';
+  }).join('') || '<tr><td colspan="5" class="muted">배정된 책이 없어요</td></tr>';
+
+  document.getElementById('report').innerHTML =
+    '<div class="academy">' + esc(ACADEMY) + '</div>'
+    + '<h1>' + esc(s.student) + ' 학습 리포트</h1>'
+    + '<div class="sub">' + (s.cls ? esc(s.cls) + ' · ' : '') + todayStr() + '</div>'
+    + '<div class="stats">'
+    + '<div class="stat"><div class="n">' + assigned + '</div><div class="l">배정 책</div></div>'
+    + '<div class="stat"><div class="n" style="color:var(--good)">' + done + '</div><div class="l">완독</div></div>'
+    + '<div class="stat"><div class="n">' + (avg != null ? avg + '%' : '–') + '</div><div class="l">평균 점수</div></div>'
+    + '</div>'
+    + '<table><tr><th>책</th><th style="text-align:center">단어</th><th style="text-align:center">퀴즈1</th><th style="text-align:center">퀴즈2</th><th style="text-align:center">녹음</th></tr>' + rows + '</table>'
+    + '<div class="muted" style="margin-top:14px">🎉 = 원서퀴즈2까지 통과한 완독 · 통과 기준 ' + PASS + '점</div>';
+}
+
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
+}
+function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+</script>
+</body>
+</html>

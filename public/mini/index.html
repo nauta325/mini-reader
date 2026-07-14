@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>미니 원서</title>
+<link rel="manifest" href="/mini/manifest.json">
+<meta name="theme-color" content="#5b6ee0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="원서">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📕</text></svg>">
+<style>
+  /* 색은 여기 --brand / --brand-2 만 바꾸면 됩니다 */
+  :root { --brand:#5b6ee0; --brand-2:#8266e6; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:linear-gradient(170deg,#e7ecfb,#f6f7fc 55%); font-family:'Noto Sans KR',system-ui,-apple-system,sans-serif; -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
+  .logo { font-size:66px; filter:drop-shadow(0 6px 14px rgba(91,110,224,.28)); }
+  h1 { font-size:27px; margin:8px 0 4px; color:#202538; font-weight:800; letter-spacing:-.01em; }
+  .sub { color:#8a90a6; margin-bottom:30px; font-size:14px; }
+  a.btn { display:block; width:100%; max-width:340px; text-align:center; text-decoration:none; padding:18px; border-radius:16px; font-size:16px; font-weight:700; margin-bottom:13px; transition:transform .1s ease, box-shadow .18s ease; }
+  a.btn:hover { transform:translateY(-2px); }
+  .student { background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:#fff; box-shadow:0 8px 22px rgba(91,110,224,.32); }
+  .teacher { background:#fff; color:var(--brand); border:1.5px solid #d9def4; box-shadow:0 4px 14px rgba(40,50,90,.06); }
+  .tip { margin-top:20px; color:#aab; font-size:12px; text-align:center; max-width:320px; line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="logo">📕</div>
+  <h1>미니 원서</h1>
+  <div class="sub">읽고 · 풀고 · 확인하고</div>
+
+  <a class="btn student" href="/mini/reader.html">👦 학생 — 원서 퀴즈 풀기</a>
+  <a class="btn teacher" href="/mini/students.html">👥 학생 관리 — 등록 · 배정 · 결과</a>
+  <a class="btn teacher" href="/mini/books.html">📚 원서 관리 — 퀴즈 만들기 · 목록</a>
+
+  <div class="tip">📱 휴대폰에서 <b>공유 → 홈 화면에 추가</b> 하면 앱처럼 아이콘으로 실행돼요.</div>
+</body>
+</html>

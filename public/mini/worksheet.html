@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>워크시트 만들기</title>
+<meta name="theme-color" content="#5b6ee0">
+<link rel="stylesheet" href="/mini/mini.css">
+<style>
+  /* 워크시트 전용 */
+  .seg { display:flex; gap:8px; flex-wrap:wrap; }
+  .seg button { flex:1; min-width:90px; background:#eef0f8; color:#454b60; }
+  .seg button.on { background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:#fff; }
+  .ws-head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid var(--brand); padding-bottom:8px; margin-bottom:14px; }
+  .ws-title { font-size:19px; font-weight:800; }
+  .ws-meta { font-size:12px; color:#888; text-align:right; }
+  .ws-sec { font-weight:700; margin:18px 0 8px; }
+  .ws-q { margin:12px 0; }
+  .ws-q .n { color:var(--brand); font-weight:800; margin-right:6px; }
+  .line { border-bottom:1px solid #cfd4e4; height:26px; margin:8px 0; }
+  .wtable { width:100%; border-collapse:collapse; }
+  .wtable td { border:1px solid #dfe3ee; padding:9px 10px; font-size:14px; }
+  .wtable .en { width:42%; font-weight:600; }
+  .bank { border:1.5px dashed var(--brand); border-radius:10px; padding:8px 12px; margin:8px 0; font-weight:600; letter-spacing:.3px; }
+  .mtable { width:100%; border-collapse:collapse; }
+  .mtable td { padding:8px 6px; font-size:14px; border:0; }
+  .mtable .mid { width:80px; }
+  .key { background:#f6f7fc; border-radius:10px; padding:12px; margin-top:16px; font-size:13px; }
+  .wslist a { text-decoration:none; }
+  @media print {
+    .seg, .builder, .topbar, .wscard { display:none !important; }
+    .key.hide { display:none !important; }
+    body { background:#fff; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap mid">
+  <div class="btns noprint topbar">
+    <a class="btn ghost" href="/mini/books.html">← 원서 관리</a>
+    <button class="primary" onclick="window.print()" style="margin-left:auto">🖨 인쇄 / PDF</button>
+  </div>
+
+  <div class="card builder noprint">
+    <div style="font-weight:700;margin-bottom:8px" id="bookTitle">불러오는 중...</div>
+    <div class="muted" style="margin-bottom:4px">워크시트 종류</div>
+    <div class="seg" id="typeSeg">
+      <button data-t="reading" class="on" onclick="pickType('reading')">📖 리딩 이해</button>
+      <button data-t="writing" onclick="pickType('writing')">✍️ 라이팅</button>
+      <button data-t="vocab" onclick="pickType('vocab')">🔤 단어</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <label class="muted" style="flex:1">난이도(단계)
+        <select id="stage"><option>기초</option><option selected>중급</option><option>심화</option></select>
+      </label>
+      <label class="muted" style="flex:1" id="countWrap">문항 수
+        <input id="count" type="number" value="8" min="1" max="20" />
+      </label>
+    </div>
+    <div class="muted" id="stageNote" style="margin-top:4px"></div>
+    <label class="muted" id="ansWrap" style="display:block;margin-top:6px"><input type="checkbox" id="withAns" onchange="rerender()" style="width:auto;margin-right:6px">정답도 함께 인쇄</label>
+    <div id="passWrap" style="margin-top:6px">
+      <div class="muted">지문 (리딩·라이팅용 — 저장된 지문이 자동으로 채워져요. 없으면 붙여넣기)<br>⚠️ 지문은 <b>문제 생성에만</b> 쓰이고, 저작권 보호를 위해 <b>인쇄물에는 포함되지 않아요</b>. 학생은 실제 책을 보며 풉니다.</div>
+      <textarea id="passage" rows="5" placeholder="영어 지문"></textarea>
+    </div>
+    <button class="primary" onclick="makeWorksheet()" style="width:100%;margin-top:8px">🤖 워크시트 만들기 (자동 저장)</button>
+    <div class="muted" id="msg" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card wscard noprint">
+    <div style="font-weight:700;margin-bottom:6px">🗂 저장된 워크시트</div>
+    <div id="wsList" class="muted wslist">불러오는 중...</div>
+  </div>
+
+  <div class="card" id="sheet" style="display:none"></div>
+</div>
+
+<script>
+var API = window.location.origin;
+var ACADEMY = '우리학원';   // 학원 이름 — 여기 한 줄만 바꾸면 됩니다
+var TYPE = 'reading';
+var BOOK = null, CURWS = null;
+var TYPE_NAMES = { reading: '리딩 이해', writing: '라이팅', vocab: '단어' };
+
+function qs(k) { return new URLSearchParams(location.search).get(k) || ''; }
+var bookId = qs('book');
+
+if (!bookId) { document.getElementById('bookTitle').textContent = '책을 지정해 주세요 (?book=번호)'; }
+else {
+  fetch(API + '/api/mini-reader?action=book-detail&id=' + encodeURIComponent(bookId)).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    BOOK = d.book;
+    document.getElementById('bookTitle').textContent = '📗 ' + BOOK.title + (BOOK.chapter ? ' Ch.' + BOOK.chapter : '') + (BOOK.level ? ' · ' + BOOK.level : '');
+    document.getElementById('passage').value = BOOK.passage || '';
+    syncControls();
+  }).catch(function (e) { document.getElementById('bookTitle').textContent = '오류: ' + e.message; });
+  loadWsList();
+}
+
+function pickType(t) {
+  TYPE = t;
+  [].forEach.call(document.querySelectorAll('#typeSeg button'), function (b) { b.classList.toggle('on', b.getAttribute('data-t') === t); });
+  syncControls();
+}
+function syncControls() {
+  var isVocab = TYPE === 'vocab';
+  document.getElementById('countWrap').style.display = isVocab ? 'none' : 'block';
+  document.getElementById('passWrap').style.display = isVocab ? 'none' : 'block';
+  var notes = {
+    reading: '기초=한글 질문 · 중급=쉬운 영어 · 심화=영어+추론↑ (문항 구성은 책 레벨에 맞춰 자동 조절)',
+    writing: '기초=한글 지시문+힌트 · 중급=쉬운 영어 · 심화=영어·자유 서술↑',
+    vocab: '기초=뜻 연결+단어상자 · 중급=뜻 쓰기+예문 빈칸 · 심화=영어 쓰기+빈칸+작문'
+  };
+  document.getElementById('stageNote').textContent = '💡 ' + notes[TYPE];
+}
+
+// ── 저장된 워크시트 목록 ──
+function loadWsList() {
+  fetch(API + '/api/mini-reader?action=worksheet-list&book=' + encodeURIComponent(bookId)).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    var el = document.getElementById('wsList');
+    if (!d.worksheets.length) { el.textContent = '아직 만든 워크시트가 없어요'; return; }
+    el.innerHTML = '<table>' + d.worksheets.map(function (w) {
+      var date = (w.created_at || '').slice(0, 10);
+      return '<tr><td>' + (TYPE_NAMES[w.type] || w.type) + '</td><td class="muted">' + esc(w.stage || '') + '</td><td class="muted">' + date + '</td>'
+        + '<td style="text-align:right;white-space:nowrap"><a href="#" onclick="openWs(' + w.id + ');return false" style="color:var(--brand)">열기</a> '
+        + '<a href="#" onclick="delWs(' + w.id + ');return false" style="color:var(--bad)">삭제</a></td></tr>';
+    }).join('') + '</table>';
+  }).catch(function (e) { document.getElementById('wsList').textContent = '오류: ' + e.message; });
+}
+function openWs(id) {
+  fetch(API + '/api/mini-reader?action=worksheet-detail&id=' + id).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    CURWS = d.worksheet; renderSheet(CURWS);
+  }).catch(function (e) { alert('오류: ' + e.message); });
+}
+function delWs(id) {
+  if (!confirm('이 워크시트를 삭제할까요?')) return;
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-worksheet', id: id }) })
+    .then(function (r) { return r.json(); }).then(function (d) { if (!d.ok) throw new Error(d.message); loadWsList(); })
+    .catch(function (e) { alert('오류: ' + e.message); });
+}
+
+function makeWorksheet() {
+  document.getElementById('msg').textContent = '만드는 중... (몇 초)';
+  fetch(API + '/api/mini-reader', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'worksheet', book_id: bookId, type: TYPE, stage: document.getElementById('stage').value, count: document.getElementById('count').value, passage: document.getElementById('passage').value.trim() })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) { document.getElementById('msg').textContent = d.message || '실패'; return; }
+    document.getElementById('msg').textContent = '✅ 만들고 저장했어요!';
+    CURWS = d.worksheet; renderSheet(CURWS); loadWsList();
+  }).catch(function (e) { document.getElementById('msg').textContent = '오류: ' + e.message; });
+}
+function rerender() { if (CURWS) renderSheet(CURWS); }
+
+// ── 렌더링 ──
+function head(w) {
+  return '<div class="ws-head"><div><div class="ws-title">' + esc(w.title) + '</div>'
+    + '<div class="muted">' + esc(ACADEMY) + ' · ' + (TYPE_NAMES[w.type] || w.type) + ' 워크시트' + (w.stage ? ' · ' + esc(w.stage) : '') + '</div></div>'
+    + '<div class="ws-meta">이름 __________<br>날짜 ____ / ____</div></div>';
+}
+function bankBox(bank) {
+  return bank && bank.length ? '<div class="bank">' + bank.map(esc).join(' · ') + '</div>' : '';
+}
+function renderSheet(w) {
+  var withAns = document.getElementById('withAns').checked;
+  var html = head(w);
+  var keys = [];
+  // ⚠️ 지문은 인쇄하지 않음 (저작권) — 학생은 실제 책을 보며 풉니다.
+
+  if (w.type === 'vocab') {
+    (w.items || []).forEach(function (sec) {
+      html += '<div class="ws-sec">' + esc(sec.title) + '</div>';
+      if (sec.kind === 'match') {
+        html += '<table class="mtable">' + sec.en.map(function (e, i) {
+          return '<tr><td><b>' + (i + 1) + '.</b> ' + esc(e) + ' ·</td><td class="mid"></td><td>· ' + String.fromCharCode(97 + i) + '. ' + esc(sec.ko[i] || '') + '</td></tr>';
+        }).join('') + '</table>';
+        if (sec.key) keys.push('<b>연결하기</b><br>' + sec.key.map(esc).join('<br>'));
+      } else if (sec.kind === 'write') {
+        html += bankBox(sec.bank);
+        html += '<table class="wtable">' + (sec.rows || []).map(function (r) { return '<tr><td class="en">' + esc(r.q) + '</td><td>&nbsp;</td></tr>'; }).join('') + '</table>';
+        keys.push('<b>' + esc(sec.title) + '</b><br>' + (sec.rows || []).map(function (r, i) { return (i + 1) + '. ' + esc(r.a || ''); }).join('<br>'));
+      } else if (sec.kind === 'cloze') {
+        html += bankBox(sec.bank);
+        html += (sec.rows || []).map(function (r, i) { return '<div class="ws-q"><span class="n">' + (i + 1) + '.</span>' + esc(r.q) + '</div>'; }).join('');
+        keys.push('<b>빈칸</b><br>' + (sec.rows || []).map(function (r, i) { return (i + 1) + '. ' + esc(r.a || ''); }).join('<br>'));
+      } else if (sec.kind === 'sentence') {
+        html += (sec.rows || []).map(function (r, i) { return '<div class="ws-q"><span class="n">' + (i + 1) + '.</span><b>' + esc(r.q) + '</b><div class="line"></div><div class="line"></div></div>'; }).join('');
+      }
+    });
+  } else if (w.type === 'writing') {
+    html += (w.items || []).map(function (it, i) {
+      var body;
+      if (it.kind === 'organizer' && it.boxes) {
+        body = it.boxes.map(function (b) {
+          return '<div style="border:1.5px solid #cfd4e4;border-radius:10px;padding:8px 10px;margin:8px 0;min-height:52px"><div class="muted" style="font-size:11px;font-weight:700">' + esc(b) + '</div></div>';
+        }).join('');
+      } else if (it.kind === 'free') {
+        body = '<div class="line"></div><div class="line"></div><div class="line"></div>';
+      } else {
+        body = '<div class="line"></div>';
+      }
+      return '<div class="ws-q"><span class="n">' + (i + 1) + '.</span>' + esc(it.prompt) + (it.hint ? ' <span class="muted">(' + esc(it.hint) + ')</span>' : '') + body + '</div>';
+    }).join('');
+    keys.push('<b>모범답안</b><br>' + (w.items || []).map(function (it, i) { return (i + 1) + '. ' + esc(it.model || it.answer || '—'); }).join('<br>'));
+  } else { // reading
+    html += (w.items || []).map(function (it, i) {
+      var body = '';
+      if (it.kind === 'mc' && it.options) {
+        body = '<div style="margin:6px 0 0 14px">' + it.options.map(function (o, k) {
+          return '<div style="margin:3px 0">' + String.fromCharCode(97 + k) + ') ' + esc(o) + '</div>';
+        }).join('') + '</div>';
+      } else if (it.kind === 'seq' && it.events) {
+        body = '<ol type="a" style="margin:6px 0 0 18px">' + it.events.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ol><div class="line" style="width:50%"></div>';
+      } else if (it.kind === 'essay') {
+        body = '<div class="line"></div><div class="line"></div>';
+      } else if (it.kind === 'tf') {
+        body = ' <span class="muted">( True / False )</span><div style="height:6px"></div>';
+      } else {
+        body = '<div class="line"></div>';
+      }
+      return '<div class="ws-q"><span class="n">' + (i + 1) + '.</span>' + esc(it.q) + body + '</div>';
+    }).join('');
+    keys.push('<b>정답</b><br>' + (w.items || []).map(function (it, i) {
+      var a = it.answer;
+      if (it.kind === 'mc' && it.options && typeof a === 'number') a = String.fromCharCode(97 + a) + ') ' + (it.options[a] || '');
+      return (i + 1) + '. ' + esc(a == null ? '' : a);
+    }).join('<br>'));
+  }
+
+  if (keys.length) html += '<div class="key' + (withAns ? '' : ' hide') + '">' + keys.join('<hr style="border:0;border-top:1px solid #e2e5f0">') + '</div>';
+  var el = document.getElementById('sheet');
+  el.innerHTML = html; el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+syncControls();
+</script>
+</body>
+</html>

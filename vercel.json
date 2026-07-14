@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/mini-reader.js": {
+      "maxDuration": 300
+    }
+  }
+}

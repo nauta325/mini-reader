@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>미니 원서 — 학생 관리</title>
+<link rel="manifest" href="/mini/manifest.json">
+<meta name="theme-color" content="#5b6ee0">
+<link rel="stylesheet" href="/mini/mini.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>👥 학생 관리</h1>
+    <div class="nav"><a href="/mini/index.html">홈</a><a href="/mini/books.html">원서 관리 →</a></div>
+  </div>
+
+  <h2>🏫 반 설정</h2>
+  <div class="card">
+    <div style="display:flex;gap:8px">
+      <input id="cName" placeholder="반 이름 (예: 월수 5시반)" style="flex:1" />
+      <button class="primary" onclick="addClass()" style="white-space:nowrap">＋ 반 추가</button>
+    </div>
+    <div id="classList" style="margin-top:10px" class="muted">불러오는 중...</div>
+  </div>
+
+  <h2>학생 등록</h2>
+  <div class="card">
+    <input id="sName" placeholder="학생 이름" />
+    <div style="display:flex;gap:8px">
+      <input id="sId" placeholder="아이디 (로그인용)" style="flex:1" />
+      <input id="sLevel" placeholder="레벨 (예: AR 1.5)" style="flex:1" />
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="sPhone" placeholder="부모님 전화번호" style="flex:1" />
+      <select id="sClass" style="flex:1"><option value="">반 선택 (선택)</option></select>
+    </div>
+    <button class="primary" onclick="addStudent()">＋ 학생 등록</button>
+    <div id="studentList" style="margin-top:12px" class="muted">불러오는 중...</div>
+  </div>
+
+  <h2>📋 붙여넣기 일괄 등록 <span class="muted" style="font-weight:400">— 전체학생DB에서 복사</span></h2>
+  <div class="card">
+    <div class="muted" style="margin-bottom:6px">엑셀·구글시트·Notion 표를 복사해 붙여넣으세요. 첫 줄이 제목(<b>이름·아이디·전화·레벨·반</b>)이면 자동 인식하고, 아니면 그 순서로 읽어요. <b>이름</b>만 있어도 됩니다.</div>
+    <textarea id="bulkText" rows="6" placeholder="이름	아이디	전화	레벨	반&#10;홍길동	hong	010-1234-5678	AR 1.5	월수5시반"></textarea>
+    <div style="display:flex;gap:8px">
+      <button class="ghost" onclick="previewBulk()" style="flex:1">미리보기</button>
+      <button class="primary" onclick="doBulk()" style="flex:1">일괄 등록</button>
+    </div>
+    <div class="muted" id="bulkMsg" style="margin-top:8px"></div>
+  </div>
+
+  <h2>📕 책 배정</h2>
+  <div class="card">
+    <select id="asgTarget"><option value="">대상 선택 (학생 또는 반)</option></select>
+    <select id="asgBook"><option value="">책 선택</option></select>
+    <button class="primary" onclick="doAssign()">＋ 배정</button>
+  </div>
+
+  <h2>📊 학생별 현황 <span class="muted" style="font-weight:400">— 배정·결과·녹음 한눈에</span></h2>
+  <div class="card">
+    <select id="ovClass" onchange="loadOverview()" style="max-width:220px"><option value="">전체 반</option></select>
+    <div id="overview" style="margin-top:10px">불러오는 중...</div>
+  </div>
+</div>
+
+<script>
+var API = window.location.origin;
+var CLASSES = [], STUDENTS = [], BOOKS = [];
+
+// 반 <option> 목록 (선택된 값 표시)
+function classOptions(sel) {
+  return '<option value="">반 없음</option>' + CLASSES.map(function (c) {
+    return '<option' + (c.name === sel ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+  }).join('');
+}
+
+// ── 반 설정 ──
+function loadClasses() {
+  fetch(API + '/api/mini-reader?action=classes').then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    CLASSES = d.classes || [];
+    document.getElementById('sClass').innerHTML = '<option value="">반 선택 (선택)</option>' + CLASSES.map(function (c) { return '<option>' + esc(c.name) + '</option>'; }).join('');
+    renderClassList();
+    renderStudentTable();
+  }).catch(function (e) { document.getElementById('classList').textContent = '오류: ' + e.message; });
+}
+var editingClassId = null;
+function renderClassList() {
+  var box = document.getElementById('classList');
+  if (!CLASSES.length) { box.innerHTML = '아직 반이 없어요. 먼저 반을 추가하세요.'; return; }
+  box.innerHTML = CLASSES.map(function (c) {
+    if (editingClassId === c.id) {
+      return '<span style="display:inline-flex;gap:4px;align-items:center;margin:3px 6px 3px 0">'
+        + '<input id="ec_' + c.id + '" value="' + esc(c.name) + '" style="width:120px;margin:0">'
+        + '<button class="primary" style="padding:6px 9px" onclick="saveClass(' + c.id + ')">저장</button>'
+        + '<a href="#" onclick="editingClassId=null;renderClassList();return false" style="color:#999;text-decoration:none">취소</a></span>';
+    }
+    return '<span style="display:inline-flex;gap:8px;align-items:center;background:#eef0f8;border-radius:9px;padding:5px 10px;margin:3px 6px 3px 0">'
+      + '<b style="font-weight:600">' + esc(c.name) + '</b>'
+      + '<a href="#" onclick="editClass(' + c.id + ');return false" style="color:var(--brand);text-decoration:none;font-size:12px">수정</a>'
+      + '<a href="#" onclick="delClass(' + c.id + ",'" + esc(c.name).replace(/'/g, '') + "');return false\" style=\"color:var(--bad);text-decoration:none;font-size:12px\">삭제</a></span>";
+  }).join('');
+}
+function editClass(id) { editingClassId = id; renderClassList(); }
+function saveClass(id) {
+  var v = document.getElementById('ec_' + id).value.trim();
+  if (!v) { alert('반 이름을 입력하세요'); return; }
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-class', id: id, name: v }) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw new Error(d.message);
+      editingClassId = null; loadClasses(); loadStudents(); fillAssignTargets(); fillOvClass(); loadOverview();
+    }).catch(function (e) { alert('오류: ' + e.message); });
+}
+function delClass(id, name) {
+  if (!confirm('"' + name + '" 반을 삭제할까요? (학생은 남고 소속만 비워집니다)')) return;
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-class', id: id }) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw new Error(d.message);
+      loadClasses(); loadStudents(); fillAssignTargets(); fillOvClass(); loadOverview();
+    }).catch(function (e) { alert('오류: ' + e.message); });
+}
+function addClass() {
+  var name = document.getElementById('cName').value.trim();
+  if (!name) { alert('반 이름을 입력하세요'); return; }
+  fetch(API + '/api/mini-reader', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add-class', name: name })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    document.getElementById('cName').value = ''; loadClasses();
+  }).catch(function (e) { alert('오류: ' + e.message); });
+}
+
+function loadStudents() {
+  fetch(API + '/api/mini-reader?action=students').then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    STUDENTS = d.students || [];
+    renderStudentTable();
+  }).catch(function (e) { document.getElementById('studentList').textContent = '오류: ' + e.message; });
+}
+var editingId = null, assigningId = null;
+function renderStudentTable() {
+  var box = document.getElementById('studentList');
+  if (!STUDENTS.length) { box.innerHTML = '아직 등록된 학생이 없어요'; return; }
+  var html = '<table><tr><th>이름</th><th>아이디</th><th>반</th><th>레벨</th><th>전화</th><th></th></tr>';
+  html += STUDENTS.map(function (s) {
+    if (editingId === s.id) {
+      return '<tr>'
+        + '<td><input id="e_name_' + s.id + '" value="' + esc(s.name) + '" style="min-width:70px"></td>'
+        + '<td><input id="e_id_' + s.id + '" value="' + esc(s.student_id || '') + '" style="min-width:60px"></td>'
+        + '<td><select id="e_class_' + s.id + '">' + classOptions(s.note || '') + '</select></td>'
+        + '<td><input id="e_level_' + s.id + '" value="' + esc(s.level || '') + '" style="min-width:60px"></td>'
+        + '<td><input id="e_phone_' + s.id + '" value="' + esc(s.phone || '') + '" style="min-width:80px"></td>'
+        + '<td style="white-space:nowrap;text-align:right"><button class="primary" style="padding:6px 9px" onclick="saveStudent(' + s.id + ')">저장</button> '
+        + '<a href="#" onclick="editingId=null;renderStudentTable();return false" style="color:#999;text-decoration:none">취소</a></td></tr>';
+    }
+    var row = '<tr><td>' + esc(s.name) + '</td><td class="muted">' + esc(s.student_id || '–') + '</td>'
+      + '<td class="muted">' + esc(s.note || '–') + '</td><td class="muted">' + esc(s.level || '–') + '</td>'
+      + '<td class="muted">' + esc(s.phone || '–') + '</td>'
+      + '<td style="text-align:right;white-space:nowrap">'
+      + '<a href="#" onclick="assignRow(' + s.id + ');return false" style="color:var(--good);text-decoration:none">배정</a> '
+      + '<a href="#" onclick="editStudent(' + s.id + ');return false" style="color:var(--brand);text-decoration:none">수정</a> '
+      + '<a href="#" onclick="delStudent(' + s.id + ",'" + nmeWithoutQuote(s) + "');return false\" style=\"color:var(--bad);text-decoration:none\">삭제</a>"
+      + '</td></tr>';
+    if (assigningId === s.id) {
+      row += '<tr><td colspan="6" style="background:#f8f9ff">'
+        + '<div style="display:flex;gap:8px;align-items:center">'
+        + '<select id="a_book_' + s.id + '" style="flex:1;margin:0"><option value="">배정할 책 선택</option>' + bookOptions() + '</select>'
+        + '<button class="primary" style="white-space:nowrap" onclick="doAssignRow(\'' + nmeWithoutQuote(s) + '\',' + s.id + ')">배정</button>'
+        + '<a href="#" onclick="assigningId=null;renderStudentTable();return false" style="color:#999;text-decoration:none">취소</a>'
+        + '</div></td></tr>';
+    }
+    return row;
+  }).join('');
+  box.innerHTML = html + '</table>';
+}
+function nmeWithoutQuote(s) { return esc(s.name).replace(/'/g, ''); }
+function editStudent(id) { editingId = id; assigningId = null; renderStudentTable(); }
+function assignRow(id) { assigningId = id; editingId = null; renderStudentTable(); }
+function doAssignRow(name, id) {
+  var book = document.getElementById('a_book_' + id).value;
+  if (!book) { alert('책을 선택하세요'); return; }
+  var body = parseBookVal(book, { action: 'assign', student: name });
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw new Error(d.message);
+      assigningId = null; renderStudentTable(); loadOverview();
+    }).catch(function (e) { alert('오류: ' + e.message); });
+}
+function delStudent(id, name) {
+  if (!confirm('"' + name + '" 학생을 삭제할까요? (배정도 함께 삭제됩니다)')) return;
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-student', id: id }) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw new Error(d.message);
+      loadStudents(); fillAssignTargets(); loadOverview();
+    }).catch(function (e) { alert('오류: ' + e.message); });
+}
+function saveStudent(id) {
+  var g = function (p) { var el = document.getElementById(p + id); return el ? el.value.trim() : ''; };
+  var name = g('e_name_');
+  if (!name) { alert('이름은 비울 수 없어요'); return; }
+  fetch(API + '/api/mini-reader', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'update-student', id: id, name: name, student_id: g('e_id_'), note: g('e_class_'), level: g('e_level_'), phone: g('e_phone_') })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    editingId = null; loadStudents(); fillAssignTargets(); fillOvClass(); loadOverview();
+  }).catch(function (e) { alert('오류: ' + e.message); });
+}
+function addStudent() {
+  var name = document.getElementById('sName').value.trim();
+  if (!name) { alert('학생 이름을 입력하세요'); return; }
+  fetch(API + '/api/mini-reader', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'add-student', name: name, student_id: document.getElementById('sId').value.trim(),
+      level: document.getElementById('sLevel').value.trim(), phone: document.getElementById('sPhone').value.trim(),
+      note: document.getElementById('sClass').value })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    document.getElementById('sName').value = ''; document.getElementById('sId').value = '';
+    document.getElementById('sLevel').value = ''; document.getElementById('sPhone').value = '';
+    loadStudents(); fillAssignTargets();
+  }).catch(function (e) { alert('오류: ' + e.message); });
+}
+
+// ── 붙여넣기 일괄 등록 ──
+function parseBulk() {
+  var raw = document.getElementById('bulkText').value.trim();
+  if (!raw) return [];
+  var lines = raw.split(/\r?\n/).filter(function (l) { return l.trim(); });
+  if (!lines.length) return [];
+  var split = function (l) { return l.indexOf('\t') > -1 ? l.split('\t') : l.split(','); };
+  var idx = { name: 0, student_id: 1, phone: 2, level: 3, note: 4 };
+  var first = split(lines[0]).map(function (c) { return c.trim(); });
+  var isHeader = first.some(function (c) { return /이름|name|아이디|전화|연락처|부모|레벨|level|반|class/i.test(c); });
+  if (isHeader) {
+    idx = { name: -1, student_id: -1, phone: -1, level: -1, note: -1 };
+    first.forEach(function (c, i) {
+      if (/이름|name/i.test(c) && idx.name < 0) idx.name = i;
+      else if (/아이디|학생id|^id$/i.test(c) && idx.student_id < 0) idx.student_id = i;
+      else if (/전화|연락처|부모|phone/i.test(c) && idx.phone < 0) idx.phone = i;
+      else if (/레벨|level/i.test(c) && idx.level < 0) idx.level = i;
+      else if (/반|class|그룹/i.test(c) && idx.note < 0) idx.note = i;
+    });
+    if (idx.name < 0) idx.name = 0;
+    lines = lines.slice(1);
+  }
+  var get = function (cols, i) { return (i >= 0 && i < cols.length) ? cols[i].trim() : ''; };
+  return lines.map(function (l) {
+    var cols = split(l);
+    return { name: get(cols, idx.name), student_id: get(cols, idx.student_id), phone: get(cols, idx.phone), level: get(cols, idx.level), note: get(cols, idx.note) };
+  }).filter(function (s) { return s.name; });
+}
+function previewBulk() {
+  var list = parseBulk();
+  document.getElementById('bulkMsg').innerHTML = list.length
+    ? '미리보기: <b>' + list.length + '명</b> — ' + list.slice(0, 6).map(function (s) { return esc(s.name); }).join(', ') + (list.length > 6 ? ' …' : '')
+    : '읽을 수 있는 학생이 없어요';
+}
+function doBulk() {
+  var list = parseBulk();
+  if (!list.length) { alert('붙여넣은 내용에서 학생을 못 찾았어요'); return; }
+  document.getElementById('bulkMsg').textContent = '등록 중...';
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'bulk-students', students: list }) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw new Error(d.message);
+      document.getElementById('bulkMsg').innerHTML = '✅ <b>' + d.added + '명</b> 등록됐어요!';
+      document.getElementById('bulkText').value = '';
+      loadClasses(); loadStudents(); fillAssignTargets(); fillOvClass();
+    }).catch(function (e) { document.getElementById('bulkMsg').textContent = '오류: ' + e.message; });
+}
+
+// ── 책 배정 ──
+// 대상 드롭다운(학생 + 반 전체) 채우기
+function fillAssignTargets() {
+  Promise.all([
+    fetch(API + '/api/mini-reader?action=students').then(function (r) { return r.json(); }),
+    fetch(API + '/api/mini-reader?action=classes').then(function (r) { return r.json(); })
+  ]).then(function (res) {
+    var students = (res[0].students || []), classes = (res[1].classes || []);
+    var html = '<option value="">대상 선택 (학생 또는 반)</option>';
+    if (students.length) html += '<optgroup label="학생">' + students.map(function (s) { return '<option value="s:' + esc(s.name) + '">' + esc(s.name) + '</option>'; }).join('') + '</optgroup>';
+    if (classes.length) html += '<optgroup label="반 전체">' + classes.map(function (c) { return '<option value="c:' + esc(c.name) + '">' + esc(c.name) + ' 전체</option>'; }).join('') + '</optgroup>';
+    document.getElementById('asgTarget').innerHTML = html;
+  });
+}
+// 책 드롭다운
+// 책 옵션: 챕터북(같은 제목 여러 행)은 "전체 챕터" 옵션도 함께
+function bookOptions() {
+  var byTitle = {};
+  BOOKS.forEach(function (b) { (byTitle[b.rawTitle || b.title] = byTitle[b.rawTitle || b.title] || []).push(b); });
+  var html = '';
+  var multi = Object.keys(byTitle).filter(function (t) { return byTitle[t].length > 1; });
+  if (multi.length) {
+    html += '<optgroup label="📚 전체 챕터 한 번에">' + multi.map(function (t) {
+      return '<option value="T:' + byTitle[t][0].id + '">' + esc(t) + ' — 전체 ' + byTitle[t].length + '챕터</option>';
+    }).join('') + '</optgroup>';
+  }
+  html += BOOKS.map(function (b) {
+    return '<option value="' + b.id + '">' + esc(b.title) + (b.level ? ' (' + esc(b.level) + ')' : '') + '</option>';
+  }).join('');
+  return html;
+}
+function fillAssignBooks() {
+  fetch(API + '/api/mini-reader?action=books').then(function (r) { return r.json(); }).then(function (d) {
+    BOOKS = d.books || [];
+    document.getElementById('asgBook').innerHTML = '<option value="">책 선택</option>' + bookOptions();
+  });
+}
+// 배정값 파싱: "T:123" = 그 제목의 전체 챕터
+function parseBookVal(v, body) {
+  if (String(v).indexOf('T:') === 0) { body.book = v.slice(2); body.wholeTitle = true; }
+  else body.book = v;
+  return body;
+}
+function doAssign() {
+  var t = document.getElementById('asgTarget').value, book = document.getElementById('asgBook').value;
+  if (!t || !book) { alert('대상과 책을 선택하세요'); return; }
+  var body = parseBookVal(book, { action: 'assign' });
+  if (t.indexOf('s:') === 0) body.student = t.slice(2); else body.cls = t.slice(2);
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw new Error(d.message); loadOverview();
+    }).catch(function (e) { alert('오류: ' + e.message); });
+}
+function unassign(student, book) {
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unassign', student: student, book: book }) })
+    .then(function (r) { return r.json(); }).then(function (d) { if (!d.ok) throw new Error(d.message); loadOverview(); })
+    .catch(function (e) { alert('오류: ' + e.message); });
+}
+
+// 반 필터 채우기
+function fillOvClass() {
+  fetch(API + '/api/mini-reader?action=classes').then(function (r) { return r.json(); }).then(function (d) {
+    document.getElementById('ovClass').innerHTML = '<option value="">전체 반</option>' + (d.classes || []).map(function (c) { return '<option>' + esc(c.name) + '</option>'; }).join('');
+  });
+}
+
+// 학생별 현황 (배정 + 결과 + 녹음)
+function loadOverview() {
+  var cls = document.getElementById('ovClass').value;
+  var url = API + '/api/mini-reader?action=overview' + (cls ? '&class=' + encodeURIComponent(cls) : '');
+  document.getElementById('overview').innerHTML = '<div class="muted">불러오는 중...</div>';
+  fetch(url).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    if (!d.students.length) { document.getElementById('overview').innerHTML = '<div class="muted">학생이 없어요</div>'; return; }
+    document.getElementById('overview').innerHTML = d.students.map(function (s) {
+      var head = '<div style="font-weight:700;margin:14px 0 4px">' + esc(s.student) + (s.cls ? ' <span class="muted" style="font-weight:400">· ' + esc(s.cls) + '</span>' : '')
+        + ' <a href="/mini/report.html?student=' + encodeURIComponent(s.student) + '" target="_blank" style="font-size:12px;font-weight:400;color:var(--brand);text-decoration:none;margin-left:6px">📄 리포트</a></div>';
+      if (!s.books.length) return head + '<div class="muted" style="padding-bottom:6px">배정된 책이 없어요</div>';
+      var qc = function (x) { return x ? '<span class="pill ' + (x.percent >= 70 ? 'p-good' : 'p-bad') + '">' + x.percent + '%</span>' : '<span class="muted">–</span>'; };
+      var rows = s.books.map(function (b) {
+        var q = b.quizzes || {};
+        var word = q[0] ? '<span class="pill p-good">완료</span>' : '<span class="muted">–</span>';
+        var rec = b.audio ? '<audio controls src="' + b.audio + '" style="width:120px;height:28px;vertical-align:middle"></audio>' : '';
+        var cancel = b.assigned ? '<a href="#" onclick="unassign(\'' + esc(s.student).replace(/'/g, '') + '\',' + b.book_id + ');return false" style="color:#e0455e;text-decoration:none">✕</a>' : '';
+        return '<tr><td>' + esc(b.title) + (b.level ? '<div class="muted" style="font-size:11px">' + esc(b.level) + '</div>' : '') + '</td>'
+          + '<td style="text-align:center">' + word + '</td>'
+          + '<td style="text-align:center">' + qc(q[1]) + '</td>'
+          + '<td style="text-align:center">' + qc(q[2]) + '</td>'
+          + '<td>' + rec + '</td><td style="text-align:right">' + cancel + '</td></tr>';
+      }).join('');
+      return head + '<table><tr><th>책</th><th style="text-align:center">단어</th><th style="text-align:center">퀴즈1</th><th style="text-align:center">퀴즈2</th><th>녹음</th><th></th></tr>' + rows + '</table>';
+    }).join('');
+  }).catch(function (e) { document.getElementById('overview').textContent = '오류: ' + e.message; });
+}
+
+function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+loadClasses();
+loadStudents();
+fillAssignTargets();
+fillAssignBooks();
+fillOvClass();
+loadOverview();
+</script>
+</body>
+</html>

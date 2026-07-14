@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>미니 원서 퀴즈</title>
+<link rel="manifest" href="/mini/manifest.json">
+<meta name="theme-color" content="#5b6ee0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📕</text></svg>">
+<link rel="stylesheet" href="/mini/mini.css">
+<style>
+  /* 학생 화면 전용: 큰 버튼은 꽉 차게, 제목 가운데 */
+  h1 { text-align: center; font-size: 24px; margin: 6px 0 16px; }
+  .primary { width: 100%; }
+</style>
+</head>
+<body>
+<div class="wrap narrow">
+  <h1>📕 원서 퀴즈</h1>
+
+  <!-- 1) 로그인 (아이디 + 이름) -->
+  <div class="card" id="nameCard">
+    <input id="loginId" placeholder="아이디" />
+    <div style="height:8px"></div>
+    <input id="name" placeholder="이름" />
+    <div style="height:10px"></div>
+    <button class="primary" onclick="startApp()">로그인</button>
+    <div class="muted" id="loginMsg" style="text-align:center;margin-top:8px"></div>
+  </div>
+
+  <!-- 2) 배정된 책 목록 -->
+  <div id="bookList" style="display:none"></div>
+
+  <!-- 3) 한 책의 퀴즈 종류 메뉴 -->
+  <div class="card" id="menuCard" style="display:none"></div>
+
+  <!-- 4) 단어 학습 (플래시카드) -->
+  <div class="card" id="studyCard" style="display:none"></div>
+
+  <!-- 5) 퀴즈 -->
+  <div class="card" id="quizCard" style="display:none"></div>
+
+  <!-- 6) 결과 -->
+  <div class="card result" id="resultCard" style="display:none"></div>
+</div>
+
+<script>
+var API = window.location.origin;
+var PASS = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--pass-score')) || 70;
+var studentName = '';
+var CUR = null;                 // 현재 책 상세 {id,title,level,words,q1,q2}
+var quizType = 1;              // 0=단어, 1=원서퀴즈1, 2=원서퀴즈2
+var quizPass = true;          // 통과 채점 여부 (단어는 false — 저장만)
+var Q = [], curQ = 0, answers = [];
+var studyIdx = 0, studyRevealed = false;
+
+function show(id, on) { document.getElementById(id).style.display = on ? 'block' : 'none'; }
+
+// 로그인: 아이디 + 이름 확인
+function startApp() {
+  var id = document.getElementById('loginId').value.trim();
+  var nm = document.getElementById('name').value.trim();
+  if (!nm) { document.getElementById('loginMsg').textContent = '이름을 입력하세요'; return; }
+  document.getElementById('loginMsg').textContent = '로그인 중...';
+  fetch(API + '/api/mini-reader', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'student-login', student_id: id, name: nm })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) { document.getElementById('loginMsg').textContent = d.message || '로그인 실패'; return; }
+    studentName = d.name;
+    document.getElementById('loginMsg').textContent = '';
+    show('nameCard', false);
+    loadBooks();
+  }).catch(function (e) { document.getElementById('loginMsg').textContent = '오류: ' + e.message; });
+}
+
+// 나에게 배정된 책만 불러오기
+function loadBooks() {
+  show('bookList', true); show('menuCard', false); show('studyCard', false); show('quizCard', false); show('resultCard', false);
+  document.getElementById('bookList').innerHTML = '<div class="muted" style="text-align:center">불러오는 중...</div>';
+  fetch(API + '/api/mini-reader?action=assignments&student=' + encodeURIComponent(studentName)).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    document.getElementById('bookList').innerHTML = d.books.map(function (b) {
+      var s = b.status || {};
+      var badges = badge('🃏 단어' + (s[0] ? ' ✓' : ''), s[0] ? 'good' : 'muted')
+        + badge('퀴즈1' + (s[1] ? ' ' + s[1].percent + '%' : ''), s[1] ? (s[1].percent >= PASS ? 'good' : 'bad') : 'muted')
+        + badge('퀴즈2' + (s[2] ? ' ' + s[2].percent + '%' : ''), s[2] ? (s[2].percent >= PASS ? 'good' : 'bad') : 'muted');
+      var done = s[2] && s[2].percent >= PASS ? ' 🎉' : '';
+      return '<div class="book"><div><b>' + esc(b.title) + done + '</b><div class="lv">' + esc(b.level || '') + '</div>'
+        + '<div style="margin-top:6px">' + badges + '</div></div>'
+        + '<button class="primary" style="width:auto" onclick="openBook(' + b.id + ')">시작</button></div>';
+    }).join('') || '<div class="muted" style="text-align:center">배정된 책이 없어요.<br>선생님이 책을 배정해 주세요.</div>';
+  }).catch(function (e) { document.getElementById('bookList').innerHTML = '오류: ' + e.message; });
+}
+
+// 책 열기 → 퀴즈 종류 메뉴
+function openBook(id) {
+  fetch(API + '/api/mini-reader?action=book-detail&id=' + id).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok) throw new Error(d.message);
+    CUR = d.book;
+    show('bookList', false); show('menuCard', true);
+    renderMenu();
+  }).catch(function (e) { alert('오류: ' + e.message); });
+}
+// 유튜브 링크에서 영상 ID 추출 (watch/youtu.be/shorts/embed 형식 지원)
+function ytId(u) { var m = String(u || '').match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/); return m ? m[1] : ''; }
+function toggleVideo() {
+  var box = document.getElementById('videoBox');
+  if (!box) return;
+  if (box.style.display === 'none') {
+    box.style.display = 'block';
+    if (!box.innerHTML) box.innerHTML = '<div style="position:relative;padding-bottom:56.25%;height:0;border-radius:12px;overflow:hidden;margin-bottom:8px"><iframe src="https://www.youtube-nocookie.com/embed/' + ytId(CUR.video_url) + '" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';
+  } else { box.style.display = 'none'; }
+}
+function renderMenu() {
+  var html = '<h3 style="margin-top:0">' + esc(CUR.title) + (CUR.chapter ? ' Ch.' + CUR.chapter : '') + (CUR.level ? ' <span class="muted" style="font-weight:400">' + esc(CUR.level) + '</span>' : '') + '</h3>';
+  var any = false;
+  if (CUR.video_url && ytId(CUR.video_url)) {
+    any = true;
+    html += '<button class="opt" style="margin-bottom:8px;font-weight:700" onclick="toggleVideo()">📺 책 읽어주기 영상 보기</button>';
+    html += '<div id="videoBox" style="display:none"></div>';
+  }
+  if ((CUR.words || []).length) { any = true; html += '<button class="primary" style="margin-bottom:8px" onclick="startStudy()">🃏 단어 학습 &amp; 퀴즈 (' + CUR.words.length + ')</button>'; }
+  if ((CUR.q1 || []).length) { any = true; html += '<button class="primary" style="margin-bottom:8px" onclick="startQuiz(1)">📝 원서퀴즈 1 (' + CUR.q1.length + ')</button>'; }
+  if ((CUR.q2 || []).length) { any = true; html += '<button class="primary" style="margin-bottom:8px" onclick="startQuiz(2)">📖 원서퀴즈 2 (' + CUR.q2.length + ')</button>'; }
+  if (!any) html += '<div class="muted">아직 만들어진 퀴즈가 없어요.</div>';
+  html += '<div style="height:6px"></div><button class="opt" onclick="loadBooks()">← 책 목록</button>';
+  document.getElementById('menuCard').innerHTML = html;
+}
+function backToMenu() { show('resultCard', false); show('quizCard', false); show('studyCard', false); show('menuCard', true); renderMenu(); }
+
+// ── 단어 학습 (플래시카드) ──
+function startStudy() {
+  if (!(CUR.words || []).length) { startWordQuiz(); return; }
+  studyIdx = 0; studyRevealed = false;
+  show('menuCard', false); show('studyCard', true);
+  renderStudy();
+}
+function renderStudy() {
+  var w = CUR.words[studyIdx], last = studyIdx === CUR.words.length - 1;
+  var html = '<div class="q-num">단어 ' + (studyIdx + 1) + ' / ' + CUR.words.length + '</div>'
+    + '<div style="text-align:center;padding:16px 0">'
+    + '<div style="font-size:30px;font-weight:800">' + esc(w.english) + '</div>'
+    + (w.word_class ? '<div class="muted">' + esc(w.word_class) + '</div>' : '');
+  if (studyRevealed) {
+    html += '<div style="font-size:20px;margin-top:10px;color:var(--brand)">' + esc(w.korean || '') + '</div>'
+      + (w.example ? '<div class="muted" style="margin-top:8px">' + esc(w.example) + '</div>' : '');
+  }
+  html += '</div>';
+  if (!studyRevealed) html += '<button class="opt" onclick="revealStudy()">뜻 보기</button>';
+  else html += '<button class="primary" onclick="nextStudy()">' + (last ? '단어퀴즈 시작 →' : '다음 단어') + '</button>';
+  html += '<div style="height:8px"></div><button class="opt" onclick="backToMenu()">← 뒤로</button>';
+  document.getElementById('studyCard').innerHTML = html;
+}
+function revealStudy() { studyRevealed = true; renderStudy(); }
+function nextStudy() {
+  if (studyIdx < CUR.words.length - 1) { studyIdx++; studyRevealed = false; renderStudy(); }
+  else startWordQuiz();
+}
+
+// ── 퀴즈 시작 (단어퀴즈 / 원서퀴즈1 / 원서퀴즈2) ──
+function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function startWordQuiz() {
+  var koreans = CUR.words.map(function (w) { return w.korean; }).filter(Boolean);
+  Q = CUR.words.map(function (w) {
+    var wrong = shuffle(koreans.filter(function (k) { return k !== w.korean; })).slice(0, 3);
+    var opts = shuffle([w.korean].concat(wrong));
+    return { q: w.english, label: '뜻이 맞는 것을 고르세요', options: opts, answer: opts.indexOf(w.korean) };
+  });
+  quizType = 0; quizPass = false; runQuiz();
+}
+function startQuiz(type) {
+  var src = type === 1 ? CUR.q1 : CUR.q2;
+  Q = (src || []).map(function (item) { return { q: item.question || item.q, options: item.options || [], answer: item.answer || 0 }; });
+  quizType = type; quizPass = true; runQuiz();
+}
+function runQuiz() {
+  if (!Q.length) { alert('이 퀴즈엔 문제가 없어요'); backToMenu(); return; }
+  curQ = 0; answers = [];
+  show('menuCard', false); show('studyCard', false); show('bookList', false); show('resultCard', false); show('quizCard', true);
+  renderQ();
+}
+
+// 문제 하나 그리기
+function renderQ() {
+  var item = Q[curQ];
+  var typeLabel = quizType === 0 ? '🃏 단어퀴즈' : (quizType === 1 ? '📝 원서퀴즈 1' : '📖 원서퀴즈 2');
+  var html = '<div class="q-num">' + typeLabel + ' · 문제 ' + (curQ + 1) + ' / ' + Q.length + '</div>'
+    + (item.label ? '<div class="muted">' + esc(item.label) + '</div>' : '')
+    + '<h3>' + esc(item.q) + '</h3>';
+  html += item.options.map(function (o, i) {
+    var picked = answers[curQ] === i ? ' pick' : '';
+    return '<button class="opt' + picked + '" onclick="pick(' + i + ')">' + esc(o) + '</button>';
+  }).join('');
+  html += '<div style="height:10px"></div>';
+  html += '<button class="primary" onclick="nextQ()">' + (curQ === Q.length - 1 ? '제출하기' : '다음') + '</button>';
+  document.getElementById('quizCard').innerHTML = html;
+}
+
+function pick(i) { answers[curQ] = i; renderQ(); }
+
+function nextQ() {
+  if (answers[curQ] == null) { alert('답을 골라주세요'); return; }
+  if (curQ < Q.length - 1) { curQ++; renderQ(); return; }
+  finishQuiz();
+}
+
+// 채점 + 저장 + 결과
+function finishQuiz() {
+  var total = Q.length, correct = 0;
+  Q.forEach(function (item, i) { if (answers[i] === item.answer) correct++; });
+  var percent = Math.round(correct / total * 100);
+  var passed = percent >= PASS;
+
+  fetch(API + '/api/mini-reader', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'submit', student: studentName, book: CUR.id, score: correct, total: total, quiz_type: quizType })
+  });
+
+  show('quizCard', false); show('resultCard', true);
+  var head, color, msg;
+  if (!quizPass) { head = '🃏'; color = 'var(--brand)'; msg = '단어 학습 완료!'; }
+  else { head = passed ? '🎉' : '💪'; color = passed ? 'var(--good)' : 'var(--bad)'; msg = passed ? '통과했어요!' : ('다시 도전해봐요 (통과 ' + PASS + '점)'); }
+  document.getElementById('resultCard').innerHTML =
+    '<div style="font-size:40px">' + head + '</div>'
+    + '<div class="big" style="color:' + color + '">' + percent + '%</div>'
+    + '<div>' + correct + ' / ' + total + ' 정답</div>'
+    + '<div class="muted">' + msg + '</div>'
+    + '<div style="height:14px"></div>'
+    + '<button class="opt" id="recBtn" onclick="toggleRec()">🎤 소리내어 읽고 녹음하기</button>'
+    + '<div class="muted" id="recMsg"></div>'
+    + '<div style="height:10px"></div>'
+    + '<button class="primary" onclick="backToMenu()">이 책의 다른 퀴즈</button>'
+    + '<div style="height:8px"></div>'
+    + '<button class="opt" onclick="loadBooks()">다른 책 고르기</button>';
+}
+
+// ── 녹음 (마이크 → Supabase 스토리지) ──
+var mediaRec = null, recChunks = [], recording = false;
+function toggleRec() {
+  if (recording) { mediaRec.stop(); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    recChunks = []; mediaRec = new MediaRecorder(stream);
+    mediaRec.ondataavailable = function (e) { if (e.data.size) recChunks.push(e.data); };
+    mediaRec.onstop = function () { stream.getTracks().forEach(function (t) { t.stop(); }); uploadRec(); };
+    mediaRec.start(); recording = true;
+    document.getElementById('recBtn').textContent = '⏹ 녹음 멈추기';
+    document.getElementById('recMsg').textContent = '🔴 녹음 중...';
+  }).catch(function () { document.getElementById('recMsg').textContent = '마이크 권한이 필요해요'; });
+}
+function uploadRec() {
+  recording = false;
+  document.getElementById('recBtn').textContent = '🎤 소리내어 읽고 녹음하기';
+  document.getElementById('recMsg').textContent = '업로드 중...';
+  var blob = new Blob(recChunks, { type: 'audio/webm' });
+  var reader = new FileReader();
+  reader.onload = function () {
+    fetch(API + '/api/mini-reader', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'upload-recording', student: studentName, book: CUR.id, audioBase64: reader.result })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      document.getElementById('recMsg').textContent = d.ok ? '✅ 녹음 저장됐어요!' : ('오류: ' + d.message);
+    }).catch(function (e) { document.getElementById('recMsg').textContent = '오류: ' + e.message; });
+  };
+  reader.readAsDataURL(blob);
+}
+
+// 책 목록 상태 배지 (통과=초록 / 미통과=빨강 / 미완료=회색)
+function badge(txt, tone) {
+  var bg = tone === 'good' ? '#e3f6ec' : (tone === 'bad' ? '#fce5ea' : '#eef0f8');
+  var col = tone === 'good' ? 'var(--good)' : (tone === 'bad' ? 'var(--bad)' : '#999');
+  return '<span style="display:inline-block;padding:2px 7px;border-radius:9px;font-size:11px;font-weight:700;background:' + bg + ';color:' + col + ';margin-right:4px">' + txt + '</span>';
+}
+
+function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+</script>
+</body>
+</html>
