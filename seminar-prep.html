@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>원서 앱 세미나 · 사전 준비 체크리스트</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f5f6fb;
+    --card: #ffffff;
+    --accent: #5b6ee0;
+    --accent2: #3f4bb8;
+    --accent3: #8266e6;
+    --text: #1a1a1a;
+    --muted: #888;
+    --done-bg: #eef0fb;
+    --done-border: #cdd4f5;
+    --border: #e4e6f0;
+    --step-num: #e3e7fb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: 'Noto Sans KR', sans-serif; color: var(--text); min-height: 100vh; padding: 0 0 80px; }
+
+  #loadingScreen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; flex-direction: column; gap: 16px;
+  }
+  .spinner { width: 36px; height: 36px; border: 3px solid #e4e4ee; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-txt { font-size: 13px; color: var(--muted); }
+
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a1a1a; color: white; padding: 10px 20px;
+    border-radius: 20px; font-size: 13px; font-weight: 500;
+    transition: transform 0.3s ease; z-index: 9998; white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.error { background: #e74c3c; }
+
+  #nameScreen { min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
+  .name-card { background: white; border-radius: 24px; padding: 40px 32px; max-width: 520px; width: 100%; box-shadow: 0 8px 40px rgba(40,50,90,0.08); text-align: center; }
+  .name-card .logo { font-size: 40px; margin-bottom: 16px; }
+  .name-card .seminar-tag { display: inline-block; background: #e7eafb; color: var(--accent2); font-size: 12px; font-weight: 700; padding: 4px 14px; border-radius: 16px; margin-bottom: 14px; letter-spacing: 0.04em; }
+  .name-card h1 { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+  .name-card > p { font-size: 14px; color: var(--muted); margin-bottom: 28px; line-height: 1.7; }
+  .name-input { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 16px; font-family: 'Noto Sans KR', sans-serif; text-align: center; margin-bottom: 8px; outline: none; transition: border-color 0.2s; }
+  .name-input:focus { border-color: var(--accent); }
+  .name-error { font-size: 13px; color: #e74c3c; min-height: 20px; margin-bottom: 6px; }
+  .name-submit { width: 100%; background: var(--accent); color: white; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; transition: opacity 0.2s; margin-bottom: 4px; }
+  .name-submit:hover { opacity: 0.88; }
+  .admin-link { margin-top: 20px; font-size: 12px; color: #ccc; cursor: pointer; text-decoration: underline; display: block; }
+  .admin-link:hover { color: var(--muted); }
+
+  .hero { background: linear-gradient(135deg, var(--accent), var(--accent3)); color: white; padding: 40px 24px 36px; text-align: center; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: -40px; right: -40px; width: 200px; height: 200px; border-radius: 50%; background: rgba(255,255,255,0.10); }
+  .hero-tag { display: inline-block; background: rgba(255,255,255,0.25); border-radius: 20px; padding: 5px 16px; font-size: 13px; font-weight: 700; margin-bottom: 12px; position: relative; z-index: 1; }
+  .hero h1 { font-size: 24px; font-weight: 900; line-height: 1.3; margin-bottom: 8px; position: relative; z-index: 1; }
+  .hero p { font-size: 13px; opacity: 0.9; line-height: 1.7; position: relative; z-index: 1; }
+  .change-name-btn { display: inline-block; margin-top: 14px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; padding: 6px 14px; border-radius: 20px; cursor: pointer; }
+
+  .progress-wrap { background: white; border-bottom: 1px solid var(--border); padding: 18px 32px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(40,50,90,0.06); }
+  .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .progress-label { font-size: 13px; font-weight: 700; }
+  .progress-count { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--accent); font-weight: 700; }
+  .progress-bar { background: #eceef7; border-radius: 10px; height: 8px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--accent), var(--accent3)); height: 100%; border-radius: 10px; width: 0%; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+
+  .section { max-width: 800px; margin: 32px auto 0; padding: 0 24px; }
+  .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .section-icon.gray { background: #eef0f6; }
+  .section-icon.green { background: #e8f5ee; }
+  .section-icon.blue { background: #e8f0ff; }
+  .section-icon.violet { background: #efeafb; }
+  .section-icon.yellow { background: #fff8e0; }
+  .section-name { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .new-badge { font-size: 10px; font-weight: 700; color: white; background: var(--accent); padding: 2px 8px; border-radius: 10px; letter-spacing: 0.05em; }
+
+  .step-card { background: var(--card); border: 1.5px solid var(--border); border-radius: 16px; margin-bottom: 12px; overflow: hidden; transition: all 0.3s ease; cursor: pointer; }
+  .step-card.done { background: var(--done-bg); border-color: var(--done-border); }
+  .step-card.done .step-main { opacity: 0.6; }
+  .step-header { display: flex; align-items: flex-start; gap: 14px; padding: 18px 18px 14px; }
+  .checkbox { width: 28px; height: 28px; border-radius: 8px; border: 2px solid #ddd; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; margin-top: 2px; background: white; }
+  .done .checkbox { background: var(--accent2); border-color: var(--accent2); }
+  .checkbox svg { display: none; }
+  .done .checkbox svg { display: block; }
+  .step-main { flex: 1; transition: opacity 0.3s; }
+  .step-num { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 3px; font-family: 'Space Mono', monospace; }
+  .step-title { font-size: 16px; font-weight: 700; line-height: 1.4; margin-bottom: 4px; }
+  .step-subtitle { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .done-badge { display: none; background: var(--accent2); color: white; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; flex-shrink: 0; margin-top: 4px; }
+  .done .done-badge { display: block; }
+  .step-detail { display: none; border-top: 1px solid var(--border); padding: 16px 18px 18px; background: #fbfbfe; }
+  .step-card.open .step-detail { display: block; }
+  .step-card.done .step-detail { background: #f5f6fd; }
+  .detail-steps { list-style: none; counter-reset: dc; }
+  .detail-steps li { counter-increment: dc; display: flex; gap: 10px; margin-bottom: 12px; font-size: 14px; line-height: 1.65; color: #333; }
+  .detail-steps li::before { content: counter(dc); background: var(--step-num); color: var(--accent2); font-weight: 800; font-size: 12px; min-width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-family: 'Space Mono', monospace; }
+  .tip-box { background: #f3f1fd; border: 1px solid #d9d2f6; border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 13px; line-height: 1.65; color: #4a3d7a; }
+  .tip-box strong { color: var(--accent2); font-weight: 700; }
+  .warning-box { background: #fff3cd; border: 1px solid #ffc940; border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 13px; line-height: 1.65; color: #7a5a00; }
+  .warning-box strong { color: #c47a00; font-weight: 700; }
+  .link-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: white; font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 10px; text-decoration: none; margin-top: 14px; transition: opacity 0.2s; }
+  .link-btn:hover { opacity: 0.88; }
+  .link-btn.dark { background: #1a1a2e; }
+  .link-btn.green { background: #2d9d5f; }
+  .divider { max-width: 800px; margin: 32px auto 0; padding: 0 24px; border: none; border-top: 2px dashed var(--border); }
+  .complete-banner { display: none; max-width: 800px; margin: 32px auto 0; padding: 0 24px; }
+  .complete-banner.show { display: block; }
+  .complete-inner { background: linear-gradient(135deg, var(--accent2), var(--accent3)); color: white; border-radius: 20px; padding: 32px 24px; text-align: center; }
+  .complete-inner .emoji { font-size: 48px; margin-bottom: 12px; }
+  .complete-inner h2 { font-size: 22px; font-weight: 900; margin-bottom: 8px; }
+  .complete-inner p { font-size: 14px; opacity: 0.9; line-height: 1.7; }
+  .footer-note { max-width: 800px; margin: 24px auto 0; padding: 0 24px; text-align: center; font-size: 12px; color: var(--muted); line-height: 1.8; }
+
+  #adminPwScreen { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 40px 20px; }
+  .pw-card { background: white; border-radius: 24px; padding: 40px 32px; max-width: 360px; width: 100%; box-shadow: 0 8px 40px rgba(40,50,90,0.08); text-align: center; }
+  .pw-card h2 { font-size: 20px; font-weight: 900; margin-bottom: 8px; }
+  .pw-card p { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+  .pw-input { width: 100%; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 16px; font-family: 'Noto Sans KR', sans-serif; text-align: center; letter-spacing: 0.2em; margin-bottom: 14px; outline: none; transition: border-color 0.2s; }
+  .pw-input:focus { border-color: var(--accent); }
+  .pw-submit { width: 100%; background: var(--accent); color: white; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; }
+  .pw-error { font-size: 13px; color: #e74c3c; margin-top: 10px; display: none; }
+  .pw-back { margin-top: 16px; font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline; display: block; }
+
+  #adminScreen { display: none; }
+  .admin-hero { background: #1a1a2e; color: white; padding: 36px 32px 32px; }
+  .admin-hero h1 { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+  .admin-hero p { font-size: 13px; opacity: 0.6; }
+  .admin-hero-btns { margin-top: 16px; display: flex; gap: 8px; }
+  .admin-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 12px; font-family: 'Noto Sans KR', sans-serif; padding: 6px 14px; border-radius: 20px; cursor: pointer; }
+  .admin-body { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+  .admin-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 28px; }
+  .summary-card { background: white; border-radius: 14px; padding: 16px; text-align: center; border: 1.5px solid var(--border); }
+  .summary-card .num { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .summary-card .lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .admin-group-title { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; margin-top: 28px; }
+  .admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 12px; }
+  .admin-card { background: white; border: 1.5px solid var(--border); border-radius: 16px; padding: 18px 20px; }
+  .admin-card.all-done { border-color: var(--done-border); background: var(--done-bg); }
+  .admin-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .admin-name { font-size: 16px; font-weight: 800; }
+  .admin-academy { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .admin-pct { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; color: var(--accent); }
+  .admin-card.all-done .admin-pct { color: var(--accent2); }
+  .admin-bar { background: #eceef7; border-radius: 6px; height: 6px; overflow: hidden; margin-bottom: 12px; }
+  .admin-bar-fill { background: linear-gradient(90deg, var(--accent), var(--accent3)); height: 100%; border-radius: 6px; }
+  .admin-card.all-done .admin-bar-fill { background: linear-gradient(90deg, var(--accent2), var(--accent3)); }
+  .admin-steps { display: flex; flex-wrap: wrap; gap: 4px; }
+  .admin-dot { width: 22px; height: 22px; border-radius: 6px; background: #eceef7; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #bbb; font-family: 'Space Mono', monospace; }
+  .admin-dot.done { background: var(--accent2); color: white; }
+  .admin-loading { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+  .admin-empty { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div id="loadingScreen"><div class="spinner"></div><div class="loading-txt">불러오는 중...</div></div>
+<div id="toast"></div>
+
+<!-- NAME -->
+<div id="nameScreen">
+  <div class="name-card">
+    <div class="logo">📚</div>
+    <div class="seminar-tag">원서 앱 세미나 · 미니 원서</div>
+    <h1>세미나 사전 준비</h1>
+    <p>이름을 입력하면 내 준비 현황이 저장돼요<br>어느 기기에서 접속해도 이어서 할 수 있어요</p>
+    <input class="name-input" type="text" id="nameInput" placeholder="이름을 입력하세요 (예: 홍보은)" autocomplete="off">
+    <div class="name-error" id="nameError"></div>
+    <button class="name-submit" onclick="submitName()">시작하기 →</button>
+    <a class="admin-link" onclick="showAdminPw()">관리자 보기</a>
+  </div>
+</div>
+
+<!-- ADMIN PW -->
+<div id="adminPwScreen">
+  <div class="pw-card">
+    <h2>🔒 관리자 로그인</h2>
+    <p>관리자 비밀번호를 입력하세요</p>
+    <input class="pw-input" type="password" id="pwInput" placeholder="••••" maxlength="10">
+    <button class="pw-submit" onclick="checkPw()">확인</button>
+    <div class="pw-error" id="pwError">비밀번호가 틀렸어요</div>
+    <a class="pw-back" onclick="showScreen('nameScreen')">← 돌아가기</a>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none">
+  <div class="hero">
+    <span class="hero-tag">📚 원서 앱 세미나</span>
+    <h1>수업 전에<br>이것만 해오세요!</h1>
+    <p>내 학원용 원서 학습 앱을 직접 배포·수정하는 세미나예요<br>당일 바로 실습하려면 계정 준비가 필요해요 😊</p>
+    <button class="change-name-btn" onclick="showScreen('nameScreen')">✏️ <span id="heroName">이름</span> · 변경</button>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-header">
+      <span class="progress-label">✅ 준비 완료</span>
+      <span class="progress-count" id="progressCount">0 / 11</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- STEP 1 - GITHUB -->
+  <div class="section">
+    <div class="section-title"><div class="section-icon gray">🐙</div><div class="section-name">STEP 1 — GitHub (내 원서 앱 저장소)</div></div>
+    <div class="step-card" id="step1" onclick="toggleStep('step1')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step1')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 01</div><div class="step-title">GitHub(깃허브) 회원가입·로그인</div><div class="step-subtitle">이 계정으로 원서 앱 코드를 내 것으로 복제해요</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li>브라우저에서 <b>github.com</b> 접속 → 우측 위 <b>Sign up</b> (이미 계정이 있으면 로그인)</li>
+          <li>이메일·비밀번호·사용자 이름(username) 입력해서 가입</li>
+          <li>노트북 크롬에서 <b>로그인</b>이 되는지 확인해요</li>
+        </ul>
+        <div class="tip-box"><strong>💡 GitHub가 뭐예요?</strong><br>코드를 보관하는 곳이에요. 세미나에서는 <b>"Use this template"</b> 버튼으로 완성된 원서 앱을 내 저장소로 복제해서 시작해요. <b>코딩을 몰라도</b> 계정만 있으면 됩니다.</div>
+        <a href="https://github.com" target="_blank" class="link-btn dark">👉 GitHub 바로가기</a>
+      </div>
+    </div>
+    <div class="step-card" id="step2" onclick="toggleStep('step2')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step2')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 02</div><div class="step-title">GitHub 이메일 인증 완료</div><div class="step-subtitle">인증을 안 하면 저장소 복제가 막힐 수 있어요</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li>가입하면 GitHub가 <b>인증 메일</b>을 보내요</li>
+          <li>메일함에서 <b>Verify(인증)</b> 링크를 클릭해요</li>
+          <li>스팸함도 확인해보세요</li>
+        </ul>
+        <div class="tip-box"><strong>💡 참고</strong><br>예전부터 쓰던 GitHub 계정이면 이미 인증돼 있어요. 이 단계는 넘어가도 됩니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <!-- STEP 2 - SUPABASE -->
+  <div class="section">
+    <div class="section-title"><div class="section-icon green">🗄️</div><div class="section-name">STEP 2 — Supabase (데이터베이스)</div></div>
+    <div class="step-card" id="step3" onclick="toggleStep('step3')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step3')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 03</div><div class="step-title">Supabase(수파베이스) 회원가입</div><div class="step-subtitle">반·학생·책·결과가 저장되는 무료 데이터베이스예요</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li><b>supabase.com</b> 접속 → <b>Start your project</b> / Sign in</li>
+          <li>⭐ <b>"Continue with GitHub"</b>로 로그인하면 제일 편해요 (STEP 1 계정)</li>
+          <li>로그인되면 대시보드가 열려요 — 여기까지만 하면 OK!</li>
+        </ul>
+        <div class="tip-box"><strong>💡 지금은 로그인만!</strong><br>실제 프로젝트 생성·SQL 실행·키 복사는 <b>수업 중에 함께</b> 해요. 미리 가입만 해두면 됩니다.</div>
+        <a href="https://supabase.com" target="_blank" class="link-btn green">👉 Supabase 바로가기</a>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <!-- STEP 3 - VERCEL -->
+  <div class="section">
+    <div class="section-title"><div class="section-icon gray">▲</div><div class="section-name">STEP 3 — Vercel (배포·인터넷에 올리기)</div></div>
+    <div class="step-card" id="step4" onclick="toggleStep('step4')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step4')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 04</div><div class="step-title">Vercel(버셀) 회원가입 — GitHub로 연결</div><div class="step-subtitle">내 원서 앱을 인터넷 주소로 만들어주는 무료 서비스</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li><b>vercel.com</b> 접속 → <b>Sign Up</b></li>
+          <li>⭐ <b>"Continue with GitHub"</b> 선택 — STEP 1 계정과 연결하면 배포가 자동으로 쉬워져요</li>
+          <li>로그인되면 대시보드가 열려요 — 여기까지만!</li>
+        </ul>
+        <div class="tip-box"><strong>💡 Vercel이 뭐예요?</strong><br>내 저장소를 골라서 <b>Deploy</b> 버튼만 누르면 <code>내이름.vercel.app</code> 주소가 생기는 서비스예요. 수업 때 클릭 몇 번으로 배포해요.</div>
+        <a href="https://vercel.com" target="_blank" class="link-btn dark">👉 Vercel 바로가기</a>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <!-- STEP 4 - CLAUDE API -->
+  <div class="section">
+    <div class="section-title"><div class="section-icon violet">✨</div><div class="section-name">STEP 4 — Claude API (AI 자동생성)</div></div>
+    <div class="step-card" id="step5" onclick="toggleStep('step5')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step5')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 05</div><div class="step-title">Anthropic(Claude) 콘솔 가입·로그인</div><div class="step-subtitle">지문만 붙여넣으면 단어카드·퀴즈를 AI가 자동 제작</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li><b>console.anthropic.com</b> 접속 → 가입/로그인</li>
+          <li>구글 계정 또는 이메일로 가입할 수 있어요</li>
+        </ul>
+        <div class="tip-box"><strong>💡 왜 필요해요?</strong><br>원서 앱의 <b>✨AI 자동생성</b> 기능(영어 지문 → 단어카드·원서퀴즈 2종 자동 제작)에 Claude를 써요. 이 기능을 쓰려면 <b>API 키</b>가 필요해요.</div>
+        <a href="https://console.anthropic.com" target="_blank" class="link-btn violet" style="background:var(--accent3)">👉 Claude 콘솔 바로가기</a>
+      </div>
+    </div>
+    <div class="step-card" id="step6" onclick="toggleStep('step6')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step6')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 06</div><div class="step-title">결제수단 등록 + 소액 충전</div><div class="step-subtitle">⚠️ 카드 승인에 시간이 걸릴 수 있어요. 미리 해두세요!</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li>콘솔 → <b>Billing(결제)</b> → 카드 등록</li>
+          <li><b>$5</b> 정도만 소액 충전해두세요 (원서 몇 개 생성은 몇 백 원 수준이라 부담 적어요)</li>
+          <li>충전 잔액이 있어야 API 키가 실제로 작동해요</li>
+        </ul>
+        <div class="warning-box"><strong>⏰ 미리 해두세요!</strong><br>카드 등록·해외결제 승인에 시간이 걸릴 수 있어요. 당일 하면 실습이 늦어지니 <b>세미나 전에</b> 꼭 등록·충전해두세요.</div>
+      </div>
+    </div>
+    <div class="step-card" id="step7" onclick="toggleStep('step7')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step7')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 07</div><div class="step-title">API 키 발급 → 메모장에 저장</div><div class="step-subtitle">수업 때 Vercel 환경변수에 넣을 키예요</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li>콘솔 좌측 <b>API Keys</b> → <b>Create Key</b> 클릭</li>
+          <li>만들어진 키를 복사해서 <b>메모장에 붙여넣어 저장</b> (창을 닫으면 다시 안 보여줘요!)</li>
+          <li>이 키는 수업 때 Vercel 환경변수 <code>ANTHROPIC_API_KEY</code>에 넣어요</li>
+        </ul>
+        <div class="warning-box"><strong>🔑 키는 비밀번호예요</strong><br>API 키는 화면공유·채팅에 노출되지 않게 조심하고, <b>본인 메모장에만</b> 저장해두세요. 노출되면 즉시 삭제하고 새로 발급하면 됩니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <!-- STEP 5 - DAY OF -->
+  <div class="section">
+    <div class="section-title"><div class="section-icon yellow">🎒</div><div class="section-name">STEP 5 — 당일 준비물</div></div>
+    <div class="step-card" id="step8" onclick="toggleStep('step8')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step8')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 08</div><div class="step-title">노트북 챙기기</div><div class="step-subtitle">맥북·윈도우 모두 OK. 충전기도 챙겨오세요</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li>크롬 브라우저가 설치되어 있으면 좋아요</li>
+          <li>충전기도 같이 챙겨오세요</li>
+          <li>GitHub·Supabase·Vercel에 <b>로그인된 상태</b>로 오면 최고예요</li>
+        </ul>
+        <div class="warning-box"><strong>⚠️ 주의</strong><br>스마트폰·태블릿만으로는 배포 실습이 어려워요. 반드시 <b>노트북</b>을 가져오세요!</div>
+      </div>
+    </div>
+    <div class="step-card" id="step9" onclick="toggleStep('step9')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step9')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 09</div><div class="step-title">스마트폰 챙기기</div><div class="step-subtitle">학생 화면의 "소리내어 읽고 녹음" 테스트용</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li>학생 화면엔 <b>소리내어 읽고 녹음</b>하는 기능이 있어요</li>
+          <li>폰으로 접속하면 녹음이 실제로 되는지 직접 확인할 수 있어요</li>
+          <li>필수는 아니지만 있으면 더 재밌어요!</li>
+        </ul>
+        <div class="tip-box"><strong>💡 꿀팁</strong><br>폰 브라우저에서 앱을 <b>"홈 화면에 추가"</b>하면 진짜 앱처럼 실행돼요 (PWA).</div>
+      </div>
+    </div>
+    <div class="step-card" id="step10" onclick="toggleStep('step10')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step10')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 10</div><div class="step-title">테스트용 원서 지문 2~3개 준비</div><div class="step-subtitle">AI 단어카드·퀴즈 생성을 직접 실습해봐요</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li>AI 생성을 실습하려면 <b>영어 지문</b>이 필요해요</li>
+          <li>우리 학원에서 쓰는 원서의 <b>영어 텍스트 2~3개</b>를 준비해오세요 (복사 가능한 형태)</li>
+          <li>짧아도 됩니다 — <b>5~10문장</b>이면 단어카드·퀴즈가 잘 나와요</li>
+        </ul>
+        <div class="tip-box"><strong>💡 참고</strong><br>저작권이 걱정되면 짧은 발췌나 직접 만든 예문도 좋아요. 준비 못 하셔도 수업 중에 <b>예시 지문</b>을 드리니 걱정 마세요.</div>
+      </div>
+    </div>
+    <div class="step-card" id="step11" onclick="toggleStep('step11')">
+      <div class="step-header">
+        <div class="checkbox" onclick="checkStep(event,'step11')"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="step-main"><div class="step-num">STEP 11</div><div class="step-title">학원 기본 정보 정리해 오기</div><div class="step-subtitle">앱을 우리 학원에 맞게 바꾸는 실습(바이브 코딩)에 써요</div></div>
+        <div class="done-badge">완료 ✓</div>
+      </div>
+      <div class="step-detail">
+        <ul class="detail-steps">
+          <li>수업 때 앱을 <b>우리 학원에 맞게</b> 바꿔요. 아래를 미리 떠올려 오세요:</li>
+          <li><b>학원 이름</b> / 원하는 <b>대표 색</b> / <b>통과 점수</b>(예: 70점)</li>
+          <li>우리 학원 <b>레벨 목록</b>(예: AR 단계) / 자주 쓰는 <b>원서 시리즈</b> 목록</li>
+          <li>테스트용 <b>학생 이름 3~5명</b> (가명 OK)</li>
+        </ul>
+        <div class="tip-box"><strong>💡 왜 미리?</strong><br>이 항목들은 각 파일에서 <b>한 줄만</b> 바꾸면 되는 것들이라, 미리 정리해오면 수업이 훨씬 빨라져요.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="complete-banner" id="completeBanner">
+    <div class="complete-inner">
+      <div class="emoji">🎉</div>
+      <h2>준비 완료!</h2>
+      <p>세미나 당일 뵙겠습니다 😊<br>질문 있으시면 편하게 연락 주세요.</p>
+    </div>
+  </div>
+  <div class="footer-note">항목을 클릭하면 상세 안내를 볼 수 있어요<br>체크박스를 누르면 자동으로 저장됩니다<br><br>궁금한 점은 홍보은영어학원으로 연락 주세요 🙏</div>
+</div>
+
+<!-- ADMIN -->
+<div id="adminScreen">
+  <div class="admin-hero">
+    <h1>📊 원서 앱 세미나 준비 현황</h1>
+    <p id="adminSubtitle">전체 참가자 준비 상태</p>
+    <div class="admin-hero-btns">
+      <button class="admin-btn" onclick="showScreen('nameScreen')">← 나가기</button>
+      <button class="admin-btn" onclick="loadAdmin()">🔄 새로고침</button>
+    </div>
+  </div>
+  <div class="admin-body">
+    <div class="admin-summary" id="adminSummary"></div>
+    <div id="adminContent"><div class="admin-loading">불러오는 중... ⏳</div></div>
+  </div>
+</div>
+
+<script>
+// ── 저장 설정 (앱스크립트 준비 페이지와 같은 Supabase의 seminar_prep 표를 공유) ──
+// SEMINAR 값만 'reader'로 달라서 원서 앱 세미나 데이터만 따로 저장·조회됩니다.
+const SUPABASE_URL = 'https://ypxkkzusllgwekdehmlp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlweGtrenVzbGxnd2VrZGVobWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1OTA5NzQsImV4cCI6MjA4NzE2Njk3NH0.CQG3XMDPK8_R1zWqs02V5pA0zvQymkKfmIbqE2Z-vw8';
+const ADMIN_PW = '0502';
+const SEMINAR = 'reader';       // ← 이 페이지는 원서 앱 세미나
+const TOTAL = 11;
+
+const sb = (typeof supabase !== 'undefined' && supabase.createClient)
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+// 화면에 보이는 순서대로의 단계 ID — 진행률 계산에 사용
+const ALL_STEPS = ['step1','step2','step3','step4','step5','step6','step7','step8','step9','step10','step11'];
+
+// 참가자 명단 — 비어 있으면 누구나 이름 입력 후 시작 가능.
+// 명단이 정해지면 아래 배열에 { name:'홍보은', academy:'홍보은영어' } 형태로 채우면
+// 자동으로 이름 검증이 켜지고, 관리자 화면에도 표시됩니다.
+const PARTICIPANTS = [
+  // { name: '홍보은', academy: '홍보은영어학원' },
+];
+
+let currentUser = null;
+let checkedSteps = new Set();
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = isError ? 'error' : '';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showScreen(id) {
+  ['nameScreen','adminPwScreen','mainApp','adminScreen'].forEach(s => {
+    document.getElementById(s).style.display = 'none';
+  });
+  const el = document.getElementById(id);
+  el.style.display = (id === 'nameScreen' || id === 'adminPwScreen') ? 'flex' : 'block';
+  if (id === 'nameScreen') {
+    currentUser = null;
+    checkedSteps = new Set();
+    document.querySelectorAll('.step-card').forEach(c => c.classList.remove('open','done'));
+    document.getElementById('nameInput').value = '';
+    document.getElementById('nameError').textContent = '';
+  }
+}
+
+function submitName() {
+  const val = document.getElementById('nameInput').value.trim();
+  const errEl = document.getElementById('nameError');
+  if (!val) { errEl.textContent = '이름을 입력해주세요'; return; }
+  // 명단이 있을 때만 검증, 비어 있으면 누구나 통과
+  if (PARTICIPANTS.length > 0) {
+    const match = PARTICIPANTS.find(p => p.name === val);
+    if (!match) { errEl.textContent = '등록된 이름이 아니에요. 신청하신 이름 그대로 입력해주세요'; return; }
+  }
+  errEl.textContent = '';
+  selectUser(val);
+}
+
+async function selectUser(name) {
+  currentUser = name;
+  document.getElementById('heroName').textContent = name + ' 님';
+  checkedSteps = new Set();
+  try {
+    if (sb) {
+      const { data } = await sb.from('seminar_prep').select('steps').eq('name', name).eq('seminar', SEMINAR).single();
+      if (data && data.steps) data.steps.forEach(s => checkedSteps.add(s));
+    }
+  } catch(e) {}
+  ALL_STEPS.forEach(stepId => {
+    const card = document.getElementById(stepId);
+    if (!card) return;
+    checkedSteps.has(stepId) ? card.classList.add('done') : card.classList.remove('done');
+  });
+  updateProgress();
+  showScreen('mainApp');
+}
+
+function toggleStep(id) {
+  const card = document.getElementById(id);
+  const isOpen = card.classList.contains('open');
+  document.querySelectorAll('.step-card').forEach(c => c.classList.remove('open'));
+  if (!isOpen) card.classList.add('open');
+}
+
+async function checkStep(e, id) {
+  e.stopPropagation();
+  const card = document.getElementById(id);
+  if (checkedSteps.has(id)) { checkedSteps.delete(id); card.classList.remove('done'); }
+  else { checkedSteps.add(id); card.classList.add('done'); }
+  updateProgress();
+  if (!sb) { showToast('저장 서버에 연결하지 못했어요 😢 새로고침 해주세요', true); return; }
+  const { error } = await sb.from('seminar_prep').upsert({
+    name: currentUser, seminar: SEMINAR, steps: [...checkedSteps], updated_at: new Date().toISOString()
+  }, { onConflict: 'name,seminar' });
+  if (error) showToast('저장 실패 😢 다시 시도해주세요', true);
+}
+
+function updateProgress() {
+  const validChecked = [...checkedSteps].filter(s => ALL_STEPS.includes(s));
+  const count = validChecked.length;
+  document.getElementById('progressCount').textContent = count + ' / ' + TOTAL;
+  document.getElementById('progressFill').style.width = (count / TOTAL * 100) + '%';
+  const banner = document.getElementById('completeBanner');
+  if (count === TOTAL) { banner.classList.add('show'); setTimeout(() => banner.scrollIntoView({behavior:'smooth',block:'center'}), 100); }
+  else banner.classList.remove('show');
+}
+
+function showAdminPw() {
+  showScreen('adminPwScreen');
+  setTimeout(() => document.getElementById('pwInput').focus(), 100);
+}
+
+function checkPw() {
+  if (document.getElementById('pwInput').value === ADMIN_PW) {
+    showScreen('adminScreen'); loadAdmin();
+  } else {
+    document.getElementById('pwError').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+async function loadAdmin() {
+  document.getElementById('adminContent').innerHTML = '<div class="admin-loading">불러오는 중... ⏳</div>';
+  if (!sb) { document.getElementById('adminContent').innerHTML = '<div class="admin-empty">저장 서버에 연결하지 못했어요.<br>새로고침 후 다시 시도해주세요.</div>'; return; }
+  const { data: rows } = await sb.from('seminar_prep').select('name, steps, updated_at').eq('seminar', SEMINAR);
+  const cleaned = (rows || []).map(r => ({
+    name: r.name,
+    steps: (r.steps || []).filter(s => ALL_STEPS.includes(s)),
+    updated_at: r.updated_at
+  }));
+
+  // 명단이 있으면 명단 기준, 없으면 저장된 데이터 기준으로 표시
+  let results;
+  if (PARTICIPANTS.length > 0) {
+    const rowMap = {};
+    cleaned.forEach(r => { rowMap[r.name] = r.steps; });
+    results = PARTICIPANTS.map(p => ({ ...p, steps: rowMap[p.name] || [], count: (rowMap[p.name] || []).length }));
+  } else {
+    results = cleaned.map(r => ({ name: r.name, academy: '', steps: r.steps, count: r.steps.length }));
+  }
+
+  const total = results.length;
+  const ready = results.filter(r => r.count === TOTAL).length;
+  const started = results.filter(r => r.count > 0 && r.count < TOTAL).length;
+  const notStarted = total - ready - started;
+
+  document.getElementById('adminSubtitle').textContent =
+    total === 0 ? '아직 시작한 참가자가 없어요' : `전체 ${total}명 · 완료 ${ready}명 · 진행중 ${started}명 · 미시작 ${notStarted}명`;
+  document.getElementById('adminSummary').innerHTML = `
+    <div class="summary-card"><div class="num">${total}</div><div class="lbl">${PARTICIPANTS.length>0?'전체 참가자':'시작한 참가자'}</div></div>
+    <div class="summary-card"><div class="num" style="color:var(--accent2)">${ready}</div><div class="lbl">준비 완료 🎉</div></div>
+    <div class="summary-card"><div class="num" style="color:#888">${started}</div><div class="lbl">진행 중</div></div>
+  `;
+
+  if (total === 0) {
+    document.getElementById('adminContent').innerHTML = '<div class="admin-empty">아직 준비를 시작한 참가자가 없습니다.<br>참가자가 이름을 입력하고 체크하면 여기에 표시돼요.</div>';
+    return;
+  }
+
+  results.sort((a,b) => b.count - a.count);
+  document.getElementById('adminContent').innerHTML =
+    `<div class="admin-grid">${results.map(p => `
+      <div class="admin-card ${p.count===TOTAL?'all-done':''}">
+        <div class="admin-card-top">
+          <div><div class="admin-name">${p.name}</div>${p.academy?`<div class="admin-academy">${p.academy}</div>`:''}</div>
+          <div class="admin-pct">${p.count}/${TOTAL}</div>
+        </div>
+        <div class="admin-bar"><div class="admin-bar-fill" style="width:${p.count/TOTAL*100}%"></div></div>
+        <div class="admin-steps">${ALL_STEPS.map((stepId, i)=>`<div class="admin-dot ${p.steps.includes(stepId)?'done':''}">${i+1}</div>`).join('')}</div>
+      </div>`).join('')}</div>`;
+}
+
+document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key==='Enter') checkPw(); });
+document.getElementById('nameInput').addEventListener('keydown', e => { if (e.key==='Enter') submitName(); });
+document.getElementById('loadingScreen').style.display = 'none';
+showScreen('nameScreen');
+</script>
+</body>
+</html>
