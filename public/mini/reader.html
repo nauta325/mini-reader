@@ -39,7 +39,7 @@
   <div class="card" id="studyCard" style="display:none"></div>
 
   <!-- 5) 퀴즈 -->
-  <div class="card" id="quizCard" style="display:none"></div>
+  <div id="quizCard" style="display:none"></div>
 
   <!-- 6) 결과 -->
   <div class="card result" id="resultCard" style="display:none"></div>
@@ -81,16 +81,29 @@ function loadBooks() {
   document.getElementById('bookList').innerHTML = '<div class="muted" style="text-align:center">불러오는 중...</div>';
   fetch(API + '/api/mini-reader?action=assignments&student=' + encodeURIComponent(studentName)).then(function (r) { return r.json(); }).then(function (d) {
     if (!d.ok) throw new Error(d.message);
-    document.getElementById('bookList').innerHTML = d.books.map(function (b) {
+    var cards = d.books.map(function (b, i) {
       var s = b.status || {};
-      var badges = badge('🃏 단어' + (s[0] ? ' ✓' : ''), s[0] ? 'good' : 'muted')
-        + badge('퀴즈1' + (s[1] ? ' ' + s[1].percent + '%' : ''), s[1] ? (s[1].percent >= PASS ? 'good' : 'bad') : 'muted')
-        + badge('퀴즈2' + (s[2] ? ' ' + s[2].percent + '%' : ''), s[2] ? (s[2].percent >= PASS ? 'good' : 'bad') : 'muted');
-      var done = s[2] && s[2].percent >= PASS ? ' 🎉' : '';
-      return '<div class="book"><div><b>' + esc(b.title) + done + '</b><div class="lv">' + esc(b.level || '') + '</div>'
-        + '<div style="margin-top:6px">' + badges + '</div></div>'
-        + '<button class="primary" style="width:auto" onclick="openBook(' + b.id + ')">시작</button></div>';
-    }).join('') || '<div class="muted" style="text-align:center">배정된 책이 없어요.<br>선생님이 책을 배정해 주세요.</div>';
+      var pass1 = s[1] && s[1].percent >= PASS, pass2 = s[2] && s[2].percent >= PASS;
+      var allDone = !!pass2;
+      var cur = !s[0] ? 0 : (!pass1 ? 1 : (!pass2 ? 2 : -1));   // 첫 미완료 단계 = 지금 하기
+      function st(idx, icon, title) {
+        var c = '', r = '하기', ic = icon;
+        if (idx === 0) { if (s[0]) { c = 'done'; r = '완료'; ic = '✓'; } }
+        else { var rr = s[idx]; if (rr) { c = rr.percent >= PASS ? 'done' : ''; r = rr.percent + '%'; if (c === 'done') ic = '✓'; } }
+        if (!c && idx === cur) { c = 'now'; r = '지금 하기'; }
+        return '<button class="step ' + c + '" onclick="openBook(' + b.id + ')">'
+          + '<div class="s-ic">' + ic + '</div>'
+          + '<div class="s-b"><div class="s-t">' + title + '</div></div>'
+          + '<div class="s-r">' + r + '</div></button>';
+      }
+      return '<div class="bk"><div class="bk-head">'
+        + '<div class="bk-no' + (allDone ? ' done' : '') + '">' + (allDone ? '✓' : (i + 1)) + '</div>'
+        + '<div><div class="bk-t">' + esc(b.title) + (allDone ? ' 🎉' : '') + '</div>'
+        + '<div class="bk-l">' + esc(b.level || '') + '</div></div></div>'
+        + '<div class="bk-steps">' + st(0, '🃏', '단어 학습') + st(1, '📝', '원서퀴즈 1') + st(2, '📖', '원서퀴즈 2') + '</div></div>';
+    }).join('');
+    document.getElementById('bookList').innerHTML = '<h2 style="margin:2px 2px 12px">📚 ' + esc(studentName) + ' 님의 원서</h2>'
+      + (cards || '<div class="card muted" style="text-align:center">배정된 책이 없어요.<br>선생님이 책을 배정해 주세요.</div>');
   }).catch(function (e) { document.getElementById('bookList').innerHTML = '오류: ' + e.message; });
 }
 
@@ -114,18 +127,21 @@ function toggleVideo() {
   } else { box.style.display = 'none'; }
 }
 function renderMenu() {
-  var html = '<h3 style="margin-top:0">' + esc(CUR.title) + (CUR.chapter ? ' Ch.' + CUR.chapter : '') + (CUR.level ? ' <span class="muted" style="font-weight:400">' + esc(CUR.level) + '</span>' : '') + '</h3>';
-  var any = false;
+  var html = '<div style="display:flex;align-items:center;gap:10px;margin:2px 0 14px">'
+    + '<button class="ghost" style="padding:8px 11px" onclick="loadBooks()">←</button>'
+    + '<div><div style="font-weight:800;font-size:16px">' + esc(CUR.title) + (CUR.chapter ? ' Ch.' + CUR.chapter : '') + '</div>'
+    + (CUR.level ? '<div class="muted" style="font-size:12px">' + esc(CUR.level) + '</div>' : '') + '</div></div>';
+  var steps = '', any = false;
   if (CUR.video_url && ytId(CUR.video_url)) {
     any = true;
-    html += '<button class="opt" style="margin-bottom:8px;font-weight:700" onclick="toggleVideo()">📺 책 읽어주기 영상 보기</button>';
-    html += '<div id="videoBox" style="display:none"></div>';
+    steps += '<button class="step" onclick="toggleVideo()"><div class="s-ic">📺</div><div class="s-b"><div class="s-t">책 읽어주기 영상</div><div class="s-d">먼저 들어보기</div></div><div class="s-r">▶</div></button>';
+    steps += '<div id="videoBox" style="display:none;margin:2px 0 6px"></div>';
   }
-  if ((CUR.words || []).length) { any = true; html += '<button class="primary" style="margin-bottom:8px" onclick="startStudy()">🃏 단어 학습 &amp; 퀴즈 (' + CUR.words.length + ')</button>'; }
-  if ((CUR.q1 || []).length) { any = true; html += '<button class="primary" style="margin-bottom:8px" onclick="startQuiz(1)">📝 원서퀴즈 1 (' + CUR.q1.length + ')</button>'; }
-  if ((CUR.q2 || []).length) { any = true; html += '<button class="primary" style="margin-bottom:8px" onclick="startQuiz(2)">📖 원서퀴즈 2 (' + CUR.q2.length + ')</button>'; }
-  if (!any) html += '<div class="muted">아직 만들어진 퀴즈가 없어요.</div>';
-  html += '<div style="height:6px"></div><button class="opt" onclick="loadBooks()">← 책 목록</button>';
+  if ((CUR.words || []).length) { any = true; steps += '<button class="step" onclick="startStudy()"><div class="s-ic">🃏</div><div class="s-b"><div class="s-t">단어 학습 &amp; 퀴즈</div><div class="s-d">단어 ' + CUR.words.length + '개</div></div><div class="s-r">→</div></button>'; }
+  if ((CUR.q1 || []).length) { any = true; steps += '<button class="step" onclick="startQuiz(1)"><div class="s-ic">📝</div><div class="s-b"><div class="s-t">원서퀴즈 1</div><div class="s-d">' + CUR.q1.length + '문제</div></div><div class="s-r">→</div></button>'; }
+  if ((CUR.q2 || []).length) { any = true; steps += '<button class="step" onclick="startQuiz(2)"><div class="s-ic">📖</div><div class="s-b"><div class="s-t">원서퀴즈 2</div><div class="s-d">' + CUR.q2.length + '문제</div></div><div class="s-r">→</div></button>'; }
+  if (!any) steps += '<div class="muted">아직 만들어진 퀴즈가 없어요.</div>';
+  html += '<div class="bk-steps">' + steps + '</div>';
   document.getElementById('menuCard').innerHTML = html;
 }
 function backToMenu() { show('resultCard', false); show('quizCard', false); show('studyCard', false); show('menuCard', true); renderMenu(); }
@@ -139,18 +155,14 @@ function startStudy() {
 }
 function renderStudy() {
   var w = CUR.words[studyIdx], last = studyIdx === CUR.words.length - 1;
-  var html = '<div class="q-num">단어 ' + (studyIdx + 1) + ' / ' + CUR.words.length + '</div>'
-    + '<div style="text-align:center;padding:16px 0">'
-    + '<div style="font-size:30px;font-weight:800">' + esc(w.english) + '</div>'
-    + (w.word_class ? '<div class="muted">' + esc(w.word_class) + '</div>' : '');
-  if (studyRevealed) {
-    html += '<div style="font-size:20px;margin-top:10px;color:var(--brand)">' + esc(w.korean || '') + '</div>'
-      + (w.example ? '<div class="muted" style="margin-top:8px">' + esc(w.example) + '</div>' : '');
-  }
-  html += '</div>';
-  if (!studyRevealed) html += '<button class="opt" onclick="revealStudy()">뜻 보기</button>';
-  else html += '<button class="primary" onclick="nextStudy()">' + (last ? '단어퀴즈 시작 →' : '다음 단어') + '</button>';
-  html += '<div style="height:8px"></div><button class="opt" onclick="backToMenu()">← 뒤로</button>';
+  var html = '<div class="q-num">🃏 단어 ' + (studyIdx + 1) + ' / ' + CUR.words.length + '</div>'
+    + '<div class="flash"><div class="fw">' + esc(w.english) + '</div>'
+    + (w.word_class ? '<div class="muted" style="margin-top:4px">' + esc(w.word_class) + '</div>' : '')
+    + (studyRevealed ? '<div class="fk">' + esc(w.korean || '') + '</div>' + (w.example ? '<div class="muted" style="margin-top:8px">' + esc(w.example) + '</div>' : '') : '')
+    + '</div>';
+  if (!studyRevealed) html += '<button class="primary" style="width:100%" onclick="revealStudy()">뜻 보기</button>';
+  else html += '<button class="primary" style="width:100%" onclick="nextStudy()">' + (last ? '단어퀴즈 시작 →' : '다음 단어') + '</button>';
+  html += '<div style="height:8px"></div><button class="ghost" style="width:100%" onclick="backToMenu()">← 뒤로</button>';
   document.getElementById('studyCard').innerHTML = html;
 }
 function revealStudy() { studyRevealed = true; renderStudy(); }
@@ -186,15 +198,24 @@ function runQuiz() {
 function renderQ() {
   var item = Q[curQ];
   var typeLabel = quizType === 0 ? '🃏 단어퀴즈' : (quizType === 1 ? '📝 원서퀴즈 1' : '📖 원서퀴즈 2');
-  var html = '<div class="q-num">' + typeLabel + ' · 문제 ' + (curQ + 1) + ' / ' + Q.length + '</div>'
-    + (item.label ? '<div class="muted">' + esc(item.label) + '</div>' : '')
-    + '<h3>' + esc(item.q) + '</h3>';
-  html += item.options.map(function (o, i) {
-    var picked = answers[curQ] === i ? ' pick' : '';
-    return '<button class="opt' + picked + '" onclick="pick(' + i + ')">' + esc(o) + '</button>';
-  }).join('');
-  html += '<div style="height:10px"></div>';
-  html += '<button class="primary" onclick="nextQ()">' + (curQ === Q.length - 1 ? '제출하기' : '다음') + '</button>';
+  var tag = quizType === 0 ? '뜻 맞히기' : (CUR.level ? CUR.level : '원서 이해');
+  var html = '<div class="quiz-stage">'
+    + '<div class="qs-head"><div class="qs-title">' + typeLabel + '</div>'
+    + '<div class="qs-sub">' + esc(CUR.title) + '</div>'
+    + '<span class="qs-tag">' + esc(tag) + '</span></div>'
+    + '<div class="qs-prog">' + (curQ + 1) + ' / ' + Q.length + '</div>'
+    + '<div class="qs-bar"><i style="width:' + Math.round((curQ + 1) / Q.length * 100) + '%"></i></div>'
+    + '<div class="qs-card">'
+    + '<span class="q-badge">Q' + (curQ + 1) + '</span>'
+    + (item.label ? '<div class="muted" style="margin-top:10px">' + esc(item.label) + '</div>' : '')
+    + '<h3 style="margin:' + (item.label ? '4px' : '12px') + ' 0 8px">' + esc(item.q) + '</h3>'
+    + item.options.map(function (o, i) {
+        var picked = answers[curQ] === i ? ' pick' : '';
+        return '<button class="q-opt' + picked + '" onclick="pick(' + i + ')">' + esc(o) + '</button>';
+      }).join('')
+    + '<div style="height:8px"></div>'
+    + '<button class="primary" style="width:100%" onclick="nextQ()">' + (curQ === Q.length - 1 ? '제출하기' : '다음') + '</button>'
+    + '</div></div>';
   document.getElementById('quizCard').innerHTML = html;
 }
 

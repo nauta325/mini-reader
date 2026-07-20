@@ -100,6 +100,57 @@ tr:last-child td { border-bottom: 0; }
 .stat .l { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .btns { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
 
+/* ============================================================
+   학생 화면 — 게임식 책 카드 + 단계 + 퀴즈 스테이지 (실제 시스템 느낌)
+   ============================================================ */
+/* 책 카드 */
+.bk { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 16px 16px 14px; margin-bottom: 14px; }
+.bk-head { display: flex; align-items: center; gap: 12px; }
+.bk-no { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(91,110,224,.30); }
+.bk-no.done { background: linear-gradient(135deg, #34c17b, #2e9a6e); }
+.bk-t { font-weight: 800; font-size: 16px; line-height: 1.3; }
+.bk-l { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.bk-steps { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+/* 단계 카드 (완료=초록 / 진행=주황 / 기본 / 잠김=회색) */
+.step { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 13px; border: 1.5px solid var(--line); background: #fbfcff; cursor: pointer; transition: border-color .15s, transform .08s; text-align: left; width: 100%; }
+.step:hover { border-color: #d4d9ee; }
+.step:active { transform: translateY(1px); }
+.step .s-ic { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; background: #eef0f8; color: #9aa0b8; font-weight: 800; }
+.step .s-b { flex: 1; min-width: 0; }
+.step .s-t { font-weight: 700; font-size: 14px; }
+.step .s-d { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.step .s-r { font-size: 12px; font-weight: 800; color: var(--muted); flex-shrink: 0; }
+.step.done { background: #eefaf2; border-color: #c7ecd6; }
+.step.done .s-ic { background: #2e9a6e; color: #fff; }
+.step.done .s-r { color: var(--good); }
+.step.now { background: #fff7e8; border-color: #ffd591; box-shadow: 0 4px 14px rgba(240,170,50,.15); }
+.step.now .s-ic { background: #f5a623; color: #fff; }
+.step.now .s-r { color: #e08e0b; }
+.step.lock { background: #f4f5f9; border-color: #eceff6; opacity: .8; }
+.step.lock .s-ic { background: #e2e5ee; color: #c2c7d8; }
+.step.lock .s-r { color: #b8bccd; }
+
+/* 퀴즈 스테이지 (보라 패널 + 진행바 + Q뱃지 + 옵션 카드) */
+.quiz-stage { background: linear-gradient(160deg, var(--brand), var(--brand-2)); border-radius: 20px; padding: 22px 16px 18px; box-shadow: 0 14px 40px rgba(91,110,224,.35); }
+.qs-head { text-align: center; color: #fff; }
+.qs-title { font-size: 19px; font-weight: 800; }
+.qs-sub { font-size: 12px; opacity: .85; margin-top: 3px; }
+.qs-tag { display: inline-block; background: rgba(255,255,255,.22); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 20px; margin-top: 8px; }
+.qs-prog { font-size: 12px; color: #fff; opacity: .9; text-align: center; margin: 12px 0 6px; font-weight: 700; }
+.qs-bar { height: 6px; background: rgba(255,255,255,.25); border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
+.qs-bar > i { display: block; height: 100%; background: #fff; border-radius: 6px; transition: width .3s ease; }
+.qs-card { background: #fff; border-radius: 16px; padding: 20px 18px; }
+.q-badge { display: inline-block; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px; }
+.q-opt { display: block; width: 100%; text-align: left; background: #f2f4fb; color: var(--text); margin: 9px 0; border: 1.5px solid transparent; font-weight: 600; padding: 14px 16px; border-radius: 12px; cursor: pointer; transition: background .12s, box-shadow .12s; }
+.q-opt:hover { background: #e9ecf8; }
+.q-opt.pick { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; box-shadow: 0 6px 16px rgba(91,110,224,.30); }
+
+/* 플래시카드 */
+.flash { text-align: center; background: linear-gradient(160deg, #f7f8ff, #eef1fc); border: 1px solid var(--line); border-radius: 18px; padding: 30px 18px; margin: 6px 0 12px; }
+.flash .fw { font-size: 32px; font-weight: 800; letter-spacing: -.01em; }
+.flash .fk { font-size: 22px; color: var(--brand); font-weight: 700; margin-top: 12px; }
+
 @media print {
   body { background: #fff; }
   .btns, .noprint { display: none !important; }
