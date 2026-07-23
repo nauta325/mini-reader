@@ -151,6 +151,32 @@ tr:last-child td { border-bottom: 0; }
 .flash .fw { font-size: 32px; font-weight: 800; letter-spacing: -.01em; }
 .flash .fk { font-size: 22px; color: var(--brand); font-weight: 700; margin-top: 12px; }
 
+/* ============================================================
+   선생님 대시보드 — 통계 카드 + 점수 분포 막대차트 (실제 시스템 느낌)
+   ============================================================ */
+.dash-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 560px) { .dash-stats { grid-template-columns: 1fr; } }
+.dash-stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+.dash-stat .l { font-size: 12px; color: var(--muted); font-weight: 600; }
+.dash-stat .n { font-size: 30px; font-weight: 800; margin-top: 4px; letter-spacing: -.02em; }
+.dash-stat .n.good { color: var(--good); }
+.dash-stat.accent { background: linear-gradient(160deg, #f2f4fd, #eaeefb); }
+
+/* 점수 분포 막대차트 */
+.bars { display: flex; align-items: flex-end; gap: 10px; height: 130px; padding: 6px 4px 0; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.bar-col .bv { font-size: 12px; font-weight: 800; color: var(--brand); margin-bottom: 5px; }
+.bar-col .bar { width: 100%; max-width: 48px; background: linear-gradient(180deg, var(--brand), var(--brand-2)); border-radius: 7px 7px 0 0; min-height: 3px; transition: height .4s ease; }
+.bar-col .bar.empty { background: #e6e9f3; }
+.bar-col .bl { font-size: 11px; color: var(--muted); margin-top: 7px; }
+
+/* 학생 현황 카드 */
+.ov-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 11px; }
+.ov-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.ov-name { font-weight: 800; font-size: 15px; }
+.ov-chip { font-size: 11px; font-weight: 700; color: var(--brand); background: #eef0fb; padding: 2px 9px; border-radius: 20px; }
+.ov-report { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--brand); text-decoration: none; }
+
 @media print {
   body { background: #fff; }
   .btns, .noprint { display: none !important; }

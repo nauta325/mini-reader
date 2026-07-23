@@ -56,11 +56,9 @@
     <button class="primary" onclick="doAssign()">＋ 배정</button>
   </div>
 
-  <h2>📊 학생별 현황 <span class="muted" style="font-weight:400">— 배정·결과·녹음 한눈에</span></h2>
-  <div class="card">
-    <select id="ovClass" onchange="loadOverview()" style="max-width:220px"><option value="">전체 반</option></select>
-    <div id="overview" style="margin-top:10px">불러오는 중...</div>
-  </div>
+  <h2>📊 원서 결과 대시보드 <span class="muted" style="font-weight:400">— 배정·결과·녹음 한눈에</span></h2>
+  <div style="margin-bottom:12px"><select id="ovClass" onchange="loadOverview()" style="max-width:220px"><option value="">전체 반</option></select></div>
+  <div id="overview">불러오는 중...</div>
 </div>
 
 <script>
@@ -343,11 +341,37 @@ function loadOverview() {
   fetch(url).then(function (r) { return r.json(); }).then(function (d) {
     if (!d.ok) throw new Error(d.message);
     if (!d.students.length) { document.getElementById('overview').innerHTML = '<div class="muted">학생이 없어요</div>'; return; }
-    document.getElementById('overview').innerHTML = d.students.map(function (s) {
-      var head = '<div style="font-weight:700;margin:14px 0 4px">' + esc(s.student) + (s.cls ? ' <span class="muted" style="font-weight:400">· ' + esc(s.cls) + '</span>' : '')
-        + ' <a href="/mini/report.html?student=' + encodeURIComponent(s.student) + '" target="_blank" style="font-size:12px;font-weight:400;color:var(--brand);text-decoration:none;margin-left:6px">📄 리포트</a></div>';
-      if (!s.books.length) return head + '<div class="muted" style="padding-bottom:6px">배정된 책이 없어요</div>';
-      var qc = function (x) { return x ? '<span class="pill ' + (x.percent >= 70 ? 'p-good' : 'p-bad') + '">' + x.percent + '%</span>' : '<span class="muted">–</span>'; };
+    var PASS = 70;
+    // ── 집계 (통계 카드 + 점수 분포) ──
+    var buckets = [0, 0, 0, 0, 0], totalQuiz = 0, passCount = 0, active = 0;
+    d.students.forEach(function (s) {
+      var did = false;
+      (s.books || []).forEach(function (b) {
+        var q = b.quizzes || {};
+        [1, 2].forEach(function (t) {
+          if (q[t]) { totalQuiz++; did = true; var p = q[t].percent; if (p >= PASS) passCount++; var bi = p < 60 ? 0 : p < 70 ? 1 : p < 80 ? 2 : p < 90 ? 3 : 4; buckets[bi]++; }
+        });
+      });
+      if (did) active++;
+    });
+    var avgPass = totalQuiz ? Math.round(passCount / totalQuiz * 100) : 0;
+    var maxB = Math.max.apply(null, buckets) || 1;
+    var labels = ['0-59', '60-69', '70-79', '80-89', '90-100'];
+    var dash = '<div class="dash-stats">'
+      + '<div class="dash-stat accent"><div class="l">활동 학생 수</div><div class="n">' + active + '</div></div>'
+      + '<div class="dash-stat accent"><div class="l">푼 퀴즈 수</div><div class="n">' + totalQuiz + '</div></div>'
+      + '<div class="dash-stat accent"><div class="l">평균 통과율 (통과 ' + PASS + '%)</div><div class="n good">' + avgPass + '%</div></div>'
+      + '</div>';
+    dash += '<div class="card"><div style="font-weight:700;font-size:14px;margin-bottom:4px">점수 분포</div><div class="bars">'
+      + buckets.map(function (v, i) { return '<div class="bar-col"><div class="bv">' + v + '</div><div class="bar' + (v ? '' : ' empty') + '" style="height:' + Math.round(v / maxB * 90) + '%"></div><div class="bl">' + labels[i] + '</div></div>'; }).join('')
+      + '</div></div>';
+    // ── 학생별 상세 카드 ──
+    var qc = function (x) { return x ? '<span class="pill ' + (x.percent >= PASS ? 'p-good' : 'p-bad') + '">' + x.percent + '%</span>' : '<span class="muted">–</span>'; };
+    var detail = d.students.map(function (s) {
+      var head = '<div class="ov-head"><span class="ov-name">' + esc(s.student) + '</span>'
+        + (s.cls ? '<span class="ov-chip">' + esc(s.cls) + '</span>' : '')
+        + '<a class="ov-report" href="/mini/report.html?student=' + encodeURIComponent(s.student) + '" target="_blank">📄 리포트</a></div>';
+      if (!s.books.length) return '<div class="ov-card">' + head + '<div class="muted">배정된 책이 없어요</div></div>';
       var rows = s.books.map(function (b) {
         var q = b.quizzes || {};
         var word = q[0] ? '<span class="pill p-good">완료</span>' : '<span class="muted">–</span>';
@@ -359,8 +383,9 @@ function loadOverview() {
           + '<td style="text-align:center">' + qc(q[2]) + '</td>'
           + '<td>' + rec + '</td><td style="text-align:right">' + cancel + '</td></tr>';
       }).join('');
-      return head + '<table><tr><th>책</th><th style="text-align:center">단어</th><th style="text-align:center">퀴즈1</th><th style="text-align:center">퀴즈2</th><th>녹음</th><th></th></tr>' + rows + '</table>';
+      return '<div class="ov-card">' + head + '<table><tr><th>책</th><th style="text-align:center">단어</th><th style="text-align:center">퀴즈1</th><th style="text-align:center">퀴즈2</th><th>녹음</th><th></th></tr>' + rows + '</table></div>';
     }).join('');
+    document.getElementById('overview').innerHTML = dash + '<h2 style="margin-top:20px">👧 학생별 상세</h2>' + detail;
   }).catch(function (e) { document.getElementById('overview').textContent = '오류: ' + e.message; });
 }
 
