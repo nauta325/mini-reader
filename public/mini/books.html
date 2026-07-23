@@ -210,12 +210,15 @@ function renderBooks() {
   var fL = document.getElementById('fLevel').value, fS = document.getElementById('fSeries').value;
   var list = BOOKS.filter(function (b) { return (!fL || b.level === fL) && (!fS || b.series === fS); });
   if (!list.length) { document.getElementById('bookList').innerHTML = '<div class="muted">해당 책이 없어요</div>'; return; }
-  var html = '<table><tr><th>제목</th><th>시리즈</th><th>레벨</th><th style="text-align:center">단어</th><th style="text-align:center">퀴즈1</th><th style="text-align:center">퀴즈2</th><th></th></tr>';
+  var cnt = function (n, label) { return n ? '<span class="pill p-good">' + label + ' ' + n + '</span>' : '<span class="pill" style="background:#f1f3fa;color:#b8bccd">' + label + ' 0</span>'; };
+  var html = '<div class="muted" style="margin-bottom:8px">총 <b style="color:var(--text)">' + list.length + '권</b></div>';
+  html += '<table><tr><th>제목</th><th>시리즈</th><th>레벨</th><th>구성</th><th></th></tr>';
   html += list.map(function (b) {
-    var c = function (n) { return '<td style="text-align:center;color:' + (n ? '#2e9a6e' : '#e0455e') + '">' + (n || 0) + '</td>'; };
-    return '<tr><td>' + esc(b.title) + (b.chapter ? ' <span class="muted">Ch.' + b.chapter + '</span>' : '') + '</td><td class="muted">' + esc(b.series || '') + '</td><td class="muted">' + esc(b.level || '') + '</td>'
-      + c(b.words) + c(b.q1) + c(b.q2)
-      + '<td style="text-align:right;white-space:nowrap"><a class="btn ghost" href="/mini/worksheet.html?book=' + b.id + '" target="_blank" style="padding:7px 9px">📝 워크시트</a> '
+    return '<tr><td><b style="font-weight:600">' + esc(b.title) + '</b>' + (b.chapter ? ' <span class="muted">Ch.' + b.chapter + '</span>' : '') + '</td>'
+      + '<td>' + (b.series ? '<span class="ov-chip">' + esc(b.series) + '</span>' : '<span class="muted">–</span>') + '</td>'
+      + '<td class="muted">' + esc(b.level || '–') + '</td>'
+      + '<td style="white-space:nowrap">' + cnt(b.words, '🃏') + ' ' + cnt(b.q1, '1') + ' ' + cnt(b.q2, '2') + '</td>'
+      + '<td style="text-align:right;white-space:nowrap"><a class="btn ghost" href="/mini/worksheet.html?book=' + b.id + '" target="_blank" style="padding:7px 9px" title="워크시트">📝</a> '
       + '<button class="ghost" onclick="editBook(' + b.id + ')">수정</button> '
       + '<button class="ghost" onclick="delBook(' + b.id + ",'" + esc(b.title).replace(/'/g, '') + "')\">삭제</button></td></tr>";
   }).join('');
