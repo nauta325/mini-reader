@@ -10,7 +10,7 @@
 
 ## 규칙 (★ 어기면 앱이 망가지거나 위험함)
 
-1. **API 키·비밀값은 Vercel 환경변수에만** (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`). HTML/브라우저 코드에 키를 절대 넣지 말 것 — 학생·학부모가 소스를 볼 수 있음
+1. **API 키·비밀값은 Vercel 환경변수에만** (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `NOTION_TOKEN`). HTML/브라우저 코드에 키를 절대 넣지 말 것 — 학생·학부모가 소스를 볼 수 있음
 2. Supabase 호출은 반드시 `api/mini-reader.js`를 거칠 것 (브라우저에서 Supabase 직접 호출 금지)
 3. 테이블 이름은 `mini_` 접두사 유지 (다른 시스템과 한 Supabase를 같이 쓸 수 있음)
 4. 한국어 주석·한국어 커밋 메시지, 파일 상단의 설명 주석은 지우지 말 것

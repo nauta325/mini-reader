@@ -48,6 +48,23 @@
     </div>
     <div class="muted" id="bulkMsg" style="margin-top:8px"></div>
   </div>
+
+  <h2>🗂 노션에서 가져오기 <span class="muted" style="font-weight:400">— 노션 학생 DB 연결</span></h2>
+  <div class="card">
+    <div class="muted" style="margin-bottom:6px">노션 학생 표(데이터베이스)를 통합에 공유하고, 그 <b>링크(또는 ID)</b>를 붙여넣으세요. 열 이름(<b>이름·아이디·전화·레벨·반</b>)을 자동으로 알아봐요. 제목 열이 이름이 됩니다.<br>⚙️ 처음 한 번은 <b>노션 통합 토큰</b>을 Vercel 환경변수 <code>NOTION_TOKEN</code>에 넣어야 해요. <a href="#" onclick="toggleNotionHelp();return false" style="color:var(--brand)">설정 방법 보기</a></div>
+    <div id="notionHelp" class="muted" style="display:none;background:#f6f7fc;border-radius:10px;padding:10px;margin-bottom:8px;line-height:1.8">
+      1. <b>notion.so/my-integrations</b> → New integration → 이름 짓고 생성 → <b>Internal Integration Secret</b>(ntn_… 또는 secret_…) 복사<br>
+      2. Vercel → 프로젝트 → Settings → Environment Variables에 <code>NOTION_TOKEN</code> = 그 토큰 추가 → Redeploy<br>
+      3. 노션에서 학생 표 페이지 열기 → 오른쪽 위 <b>···</b> → <b>Connections(연결)</b> → 방금 만든 통합 선택<br>
+      4. 그 표의 링크를 아래에 붙여넣고 <b>미리보기</b>
+    </div>
+    <input id="notionDb" placeholder="노션 데이터베이스 링크 또는 ID" />
+    <div style="display:flex;gap:8px">
+      <button class="ghost" onclick="notionPreview()" style="flex:1">미리보기</button>
+      <button class="primary" onclick="notionImport()" style="flex:1">가져오기</button>
+    </div>
+    <div class="muted" id="notionMsg" style="margin-top:8px"></div>
+  </div>
 </div>
 
 <script>
@@ -255,6 +272,33 @@ function doBulk() {
       document.getElementById('bulkText').value = '';
       loadClasses(); loadStudents();
     }).catch(function (e) { document.getElementById('bulkMsg').textContent = '오류: ' + e.message; });
+}
+
+// ── 노션에서 가져오기 ──
+function toggleNotionHelp() { var h = document.getElementById('notionHelp'); h.style.display = h.style.display === 'none' ? 'block' : 'none'; }
+function notionCall(dry) {
+  var db = document.getElementById('notionDb').value.trim();
+  if (!db) { alert('노션 데이터베이스 링크(또는 ID)를 넣어주세요'); return Promise.reject(); }
+  return fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'notion-import', database: db, dry_run: dry }) })
+    .then(function (r) { return r.json(); });
+}
+function notionPreview() {
+  document.getElementById('notionMsg').textContent = '노션에서 불러오는 중...';
+  notionCall(true).then(function (d) {
+    if (!d.ok) { document.getElementById('notionMsg').textContent = '오류: ' + d.message; return; }
+    var names = d.students.map(function (s) { return esc(s.name); });
+    document.getElementById('notionMsg').innerHTML = '미리보기: <b>' + d.count + '명</b> — ' + names.slice(0, 8).join(', ') + (names.length > 8 ? ' …' : '')
+      + '<br><span class="muted">문제없으면 [가져오기]를 누르세요. 이미 등록된 이름은 건너뜁니다.</span>';
+  }).catch(function (e) { if (e) document.getElementById('notionMsg').textContent = '오류: ' + (e.message || e); });
+}
+function notionImport() {
+  document.getElementById('notionMsg').textContent = '가져오는 중...';
+  notionCall(false).then(function (d) {
+    if (!d.ok) { document.getElementById('notionMsg').textContent = '오류: ' + d.message; return; }
+    document.getElementById('notionMsg').innerHTML = '✅ <b>' + d.added + '명</b> 가져왔어요!' + (d.skipped ? ' <span class="muted">(이미 있어 건너뜀 ' + d.skipped + '명)</span>' : '');
+    document.getElementById('notionDb').value = '';
+    loadClasses(); loadStudents();
+  }).catch(function (e) { if (e) document.getElementById('notionMsg').textContent = '오류: ' + (e.message || e); });
 }
 
 // ── 학생 표의 빠른 배정에 쓰는 책 목록 ──

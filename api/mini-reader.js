@@ -11,12 +11,12 @@
 //   mini_worksheets  워크시트 저장
 //   mini_settings    설정 (영어 출제 시작 레벨, 시리즈 목록)
 //
-// 환경변수: SUPABASE_URL, SUPABASE_SERVICE_KEY (필수) / ANTHROPIC_API_KEY (AI 생성용, 선택)
+// 환경변수: SUPABASE_URL, SUPABASE_SERVICE_KEY (필수) / ANTHROPIC_API_KEY (AI 생성용, 선택) / NOTION_TOKEN (노션 가져오기용, 선택)
 //
 // 액션 그룹:
 //   설정      settings · set-settings · rename-series
 //   반        classes · add-class · update-class · delete-class
-//   학생      students · add-student · bulk-students · update-student · delete-student · student-login
+//   학생      students · add-student · bulk-students · notion-import(노션DB) · update-student · delete-student · student-login
 //   배정      assign(wholeTitle=전체챕터) · unassign · assignments
 //   책        books · book-list · book-detail · add-book · update-book · delete-book · generate(AI)
 //   학습      quiz · submit · upload-recording · recordings · results · overview(현황/리포트)
@@ -24,6 +24,8 @@
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+// 노션 학생 DB 가져오기용 (선택) — Vercel 환경변수에만! HTML/브라우저에 넣지 말 것
+const NOTION_TOKEN = process.env.NOTION_TOKEN;
 
 // Supabase REST 호출 (아주 단순 — 데이터베이스 주소로 요청 보내기)
 async function sb(path, opts = {}) {
@@ -44,6 +46,101 @@ async function sb(path, opts = {}) {
 
 // 표시용 제목: 챕터북이면 "제목 Ch.3" (챕터별로 한 행씩 등록)
 const dispTitle = (b) => (b ? String(b.title || '') + (b.chapter ? ' Ch.' + b.chapter : '') : '');
+
+// ── 학생 일괄 삽입 (붙여넣기·노션 공용) ──
+// opts.dedup=true 면 이미 있는 이름은 건너뜀 (노션 재가져오기 대비)
+async function bulkInsertStudents(students, opts = {}) {
+  let rows = (students || []).filter((s) => s && s.name).map((s) => ({
+    name: String(s.name).trim(),
+    student_id: s.student_id ? String(s.student_id).trim() : '',
+    phone: s.phone ? String(s.phone).trim() : '',
+    level: s.level ? String(s.level).trim() : '',
+    note: s.note ? String(s.note).trim() : '',
+  }));
+  if (!rows.length) return { added: 0, skipped: 0 };
+  let skipped = 0;
+  if (opts.dedup) {
+    const existing = await sb('mini_students?select=name');
+    const have = new Set((existing || []).map((s) => (s.name || '').trim().toLowerCase()));
+    const before = rows.length;
+    rows = rows.filter((r) => !have.has(r.name.toLowerCase()));
+    skipped = before - rows.length;
+  }
+  // 새로 등장한 반 이름은 자동 생성 (드롭다운에 바로 뜨게)
+  const notes = Array.from(new Set(rows.map((r) => r.note).filter(Boolean)));
+  if (notes.length) {
+    const existing = await sb('mini_classes?select=name');
+    const have = new Set((existing || []).map((c) => c.name));
+    const toAdd = notes.filter((n) => !have.has(n)).map((n) => ({ name: n }));
+    if (toAdd.length) await sb('mini_classes', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(toAdd) });
+  }
+  if (rows.length) await sb('mini_students', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(rows) });
+  return { added: rows.length, skipped };
+}
+
+// ── 노션 API 헬퍼 (순수 fetch, npm 패키지 없음) ──
+// 노션 속성 1개 → 문자열 (title/rich_text/select/phone 등 흔한 타입 지원)
+function notionText(prop) {
+  if (!prop) return '';
+  switch (prop.type) {
+    case 'title': return (prop.title || []).map((t) => t.plain_text).join('').trim();
+    case 'rich_text': return (prop.rich_text || []).map((t) => t.plain_text).join('').trim();
+    case 'select': return prop.select ? prop.select.name : '';
+    case 'status': return prop.status ? prop.status.name : '';
+    case 'multi_select': return (prop.multi_select || []).map((o) => o.name).join(', ');
+    case 'phone_number': return prop.phone_number || '';
+    case 'email': return prop.email || '';
+    case 'url': return prop.url || '';
+    case 'number': return prop.number == null ? '' : String(prop.number);
+    case 'people': return (prop.people || []).map((p) => p.name || '').join(', ');
+    case 'formula': return prop.formula ? (prop.formula.string || (prop.formula.number != null ? String(prop.formula.number) : '')) : '';
+    case 'rollup': {
+      const r = prop.rollup;
+      if (!r) return '';
+      if (r.type === 'array') return (r.array || []).map(notionText).join(', ');
+      if (r.type === 'number') return r.number == null ? '' : String(r.number);
+      return '';
+    }
+    default: return '';
+  }
+}
+// 노션 페이지 properties → {name, student_id, phone, level, note} (열 이름으로 자동 매핑)
+function mapNotionRow(props) {
+  const out = { name: '', student_id: '', phone: '', level: '', note: '' };
+  Object.keys(props || {}).forEach((key) => {
+    const p = props[key], val = notionText(p);
+    if (p && p.type === 'title' && !out.name) { out.name = val; return; }  // 제목 열 = 이름
+    if (!val) return;
+    if (/이름|성함|name/i.test(key) && !out.name) out.name = val;
+    else if (/아이디|로그인|login/i.test(key) || /^id$/i.test(key.trim())) { if (!out.student_id) out.student_id = val; }
+    else if (/전화|연락처|폰|번호|phone|tel|hp/i.test(key)) { if (!out.phone) out.phone = val; }
+    else if (/레벨|수준|level/i.test(key)) { if (!out.level) out.level = val; }
+    else if (/반|클래스|그룹|class|group/i.test(key)) { if (!out.note) out.note = val; }
+  });
+  return out;
+}
+// URL 또는 ID 문자열에서 노션 DB id(32 hex) 추출 (뒤의 ?v=뷰id 제거)
+function parseNotionDbId(input) {
+  const s = String(input || '').trim().split('?')[0];
+  const hex = s.replace(/-/g, '').match(/[0-9a-fA-F]{32}/g);
+  return hex ? hex[hex.length - 1] : '';
+}
+// 노션 데이터베이스 전체 조회 (페이지네이션)
+async function notionQueryDB(dbId) {
+  let results = [], cursor = null, guard = 0;
+  do {
+    const r = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${NOTION_TOKEN}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
+      body: JSON.stringify(cursor ? { start_cursor: cursor, page_size: 100 } : { page_size: 100 }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error('Notion ' + r.status + ': ' + String((j && j.message) || JSON.stringify(j)).slice(0, 200));
+    results = results.concat(j.results || []);
+    cursor = j.has_more ? j.next_cursor : null;
+  } while (cursor && ++guard < 20);
+  return results;
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -132,24 +229,23 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST' && action === 'bulk-students') {
       const { students } = req.body || {};
       if (!Array.isArray(students)) return res.status(400).json({ ok: false, message: '학생 목록이 필요해요' });
-      const rows = students.filter((s) => s && s.name).map((s) => ({
-        name: String(s.name).trim(),
-        student_id: s.student_id ? String(s.student_id).trim() : '',
-        phone: s.phone ? String(s.phone).trim() : '',
-        level: s.level ? String(s.level).trim() : '',
-        note: s.note ? String(s.note).trim() : '',
-      }));
-      if (!rows.length) return res.status(400).json({ ok: false, message: '이름이 있는 행이 없어요' });
-      // 새로 등장한 반 이름은 자동 생성 (드롭다운에 바로 뜨게)
-      const notes = Array.from(new Set(rows.map((r) => r.note).filter(Boolean)));
-      if (notes.length) {
-        const existing = await sb('mini_classes?select=name');
-        const have = new Set((existing || []).map((c) => c.name));
-        const toAdd = notes.filter((n) => !have.has(n)).map((n) => ({ name: n }));
-        if (toAdd.length) await sb('mini_classes', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(toAdd) });
-      }
-      await sb('mini_students', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(rows) });
-      return res.json({ ok: true, added: rows.length });
+      const { added } = await bulkInsertStudents(students);
+      if (!added) return res.status(400).json({ ok: false, message: '이름이 있는 행이 없어요' });
+      return res.json({ ok: true, added });
+    }
+
+    // ── (선생님) 노션 학생 DB 가져오기 (dry_run=true면 미리보기만) ──
+    if (req.method === 'POST' && action === 'notion-import') {
+      if (!NOTION_TOKEN) return res.status(400).json({ ok: false, message: 'NOTION_TOKEN 환경변수가 없어요. Vercel에 노션 통합 토큰을 넣어주세요.' });
+      const { database, dry_run } = req.body || {};
+      const dbId = parseNotionDbId(database);
+      if (!dbId) return res.status(400).json({ ok: false, message: '노션 데이터베이스 링크(또는 ID)를 확인해 주세요.' });
+      const pages = await notionQueryDB(dbId);
+      const students = pages.map((pg) => mapNotionRow(pg.properties || {})).filter((s) => s.name);
+      if (!students.length) return res.status(400).json({ ok: false, message: '이름이 있는 학생을 못 찾았어요. 노션 표에 제목(이름) 열이 있고, 통합에 공유했는지 확인해 주세요.' });
+      if (dry_run) return res.json({ ok: true, students, count: students.length });
+      const { added, skipped } = await bulkInsertStudents(students, { dedup: true });
+      return res.json({ ok: true, added, skipped });
     }
 
     // ── (선생님) 학생 정보 수정 (이름 바뀌면 배정·결과·녹음도 연동) ──
