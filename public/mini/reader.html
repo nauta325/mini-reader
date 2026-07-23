@@ -38,6 +38,9 @@
   <!-- 4) 단어 학습 (플래시카드) -->
   <div class="card" id="studyCard" style="display:none"></div>
 
+  <!-- 4-1) 소리내어 읽고 녹음 (퀴즈 풀기 전) -->
+  <div class="card" id="recCard" style="display:none"></div>
+
   <!-- 5) 퀴즈 -->
   <div id="quizCard" style="display:none"></div>
 
@@ -77,7 +80,7 @@ function startApp() {
 
 // 나에게 배정된 책만 불러오기
 function loadBooks() {
-  show('bookList', true); show('menuCard', false); show('studyCard', false); show('quizCard', false); show('resultCard', false);
+  show('bookList', true); show('menuCard', false); show('studyCard', false); show('recCard', false); show('quizCard', false); show('resultCard', false);
   document.getElementById('bookList').innerHTML = '<div class="muted" style="text-align:center">불러오는 중...</div>';
   fetch(API + '/api/mini-reader?action=assignments&student=' + encodeURIComponent(studentName)).then(function (r) { return r.json(); }).then(function (d) {
     if (!d.ok) throw new Error(d.message);
@@ -138,13 +141,14 @@ function renderMenu() {
     steps += '<div id="videoBox" style="display:none;margin:2px 0 6px"></div>';
   }
   if ((CUR.words || []).length) { any = true; steps += '<button class="step" onclick="startStudy()"><div class="s-ic">🃏</div><div class="s-b"><div class="s-t">단어 학습 &amp; 퀴즈</div><div class="s-d">단어 ' + CUR.words.length + '개</div></div><div class="s-r">→</div></button>'; }
+  any = true; steps += '<button class="step" onclick="startRec()"><div class="s-ic">🎤</div><div class="s-b"><div class="s-t">소리내어 읽고 녹음</div><div class="s-d">퀴즈 풀기 전에 책을 읽어요</div></div><div class="s-r">→</div></button>';
   if ((CUR.q1 || []).length) { any = true; steps += '<button class="step" onclick="startQuiz(1)"><div class="s-ic">📝</div><div class="s-b"><div class="s-t">원서퀴즈 1</div><div class="s-d">' + CUR.q1.length + '문제</div></div><div class="s-r">→</div></button>'; }
   if ((CUR.q2 || []).length) { any = true; steps += '<button class="step" onclick="startQuiz(2)"><div class="s-ic">📖</div><div class="s-b"><div class="s-t">원서퀴즈 2</div><div class="s-d">' + CUR.q2.length + '문제</div></div><div class="s-r">→</div></button>'; }
   if (!any) steps += '<div class="muted">아직 만들어진 퀴즈가 없어요.</div>';
   html += '<div class="bk-steps">' + steps + '</div>';
   document.getElementById('menuCard').innerHTML = html;
 }
-function backToMenu() { show('resultCard', false); show('quizCard', false); show('studyCard', false); show('menuCard', true); renderMenu(); }
+function backToMenu() { show('resultCard', false); show('quizCard', false); show('studyCard', false); show('recCard', false); show('menuCard', true); renderMenu(); }
 
 // ── 단어 학습 (플래시카드) ──
 function startStudy() {
@@ -171,6 +175,22 @@ function nextStudy() {
   else startWordQuiz();
 }
 
+// ── 소리내어 읽고 녹음 (퀴즈 풀기 전) ──
+function startRec() {
+  show('menuCard', false); show('recCard', true);
+  renderRecCard();
+}
+function renderRecCard() {
+  var html = '<div class="q-num">🎤 소리내어 읽기</div>'
+    + '<div class="muted" style="text-align:center;margin:6px 0 14px;line-height:1.6">책을 펴서 소리내어 읽고 녹음해요.<br>다 읽고 멈추면 자동으로 저장돼요.</div>'
+    + '<button class="opt" id="recBtn" style="width:100%" onclick="toggleRec()">🎤 소리내어 읽고 녹음하기</button>'
+    + '<div class="muted" id="recMsg" style="text-align:center;margin-top:8px"></div>'
+    + '<div style="height:14px"></div>';
+  if ((CUR.q1 || []).length) html += '<button class="primary" onclick="startQuiz(1)">다음: 원서퀴즈 1 →</button><div style="height:8px"></div>';
+  html += '<button class="ghost" style="width:100%" onclick="backToMenu()">← 메뉴로</button>';
+  document.getElementById('recCard').innerHTML = html;
+}
+
 // ── 퀴즈 시작 (단어퀴즈 / 원서퀴즈1 / 원서퀴즈2) ──
 function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 function startWordQuiz() {
@@ -190,7 +210,7 @@ function startQuiz(type) {
 function runQuiz() {
   if (!Q.length) { alert('이 퀴즈엔 문제가 없어요'); backToMenu(); return; }
   curQ = 0; answers = [];
-  show('menuCard', false); show('studyCard', false); show('bookList', false); show('resultCard', false); show('quizCard', true);
+  show('menuCard', false); show('studyCard', false); show('recCard', false); show('bookList', false); show('resultCard', false); show('quizCard', true);
   renderQ();
 }
 
@@ -249,9 +269,6 @@ function finishQuiz() {
     + '<div>' + correct + ' / ' + total + ' 정답</div>'
     + '<div class="muted">' + msg + '</div>'
     + '<div style="height:14px"></div>'
-    + '<button class="opt" id="recBtn" onclick="toggleRec()">🎤 소리내어 읽고 녹음하기</button>'
-    + '<div class="muted" id="recMsg"></div>'
-    + '<div style="height:10px"></div>'
     + '<button class="primary" onclick="backToMenu()">이 책의 다른 퀴즈</button>'
     + '<div style="height:8px"></div>'
     + '<button class="opt" onclick="loadBooks()">다른 책 고르기</button>';
