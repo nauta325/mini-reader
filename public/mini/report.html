@@ -41,14 +41,16 @@ if (!student) {
 function render(s) {
   var books = s.books || [];
   var assigned = books.length;
-  var done = 0, q1sum = 0, q1cnt = 0, q2sum = 0, q2cnt = 0;
+  var done = 0, q1sum = 0, q1cnt = 0, q2sum = 0, q2cnt = 0, passCount = 0;
   books.forEach(function (b) {
     var q = b.quizzes || {};
     if (q[2] && q[2].percent >= PASS) done++;
-    if (q[1]) { q1sum += q[1].percent; q1cnt++; }
-    if (q[2]) { q2sum += q[2].percent; q2cnt++; }
+    if (q[1]) { q1sum += q[1].percent; q1cnt++; if (q[1].percent >= PASS) passCount++; }
+    if (q[2]) { q2sum += q[2].percent; q2cnt++; if (q[2].percent >= PASS) passCount++; }
   });
-  var avg = (q1cnt + q2cnt) ? Math.round((q1sum + q2sum) / (q1cnt + q2cnt)) : null;
+  var totalQ = q1cnt + q2cnt;
+  var avg = totalQ ? Math.round((q1sum + q2sum) / totalQ) : null;
+  var passRate = totalQ ? Math.round(passCount / totalQ * 100) : null;
 
   var rows = books.map(function (b) {
     var q = b.quizzes || {};
@@ -63,14 +65,17 @@ function render(s) {
   }).join('') || '<tr><td colspan="5" class="muted">배정된 책이 없어요</td></tr>';
 
   document.getElementById('report').innerHTML =
-    '<div class="academy">' + esc(ACADEMY) + '</div>'
+    '<div style="border-bottom:2px solid var(--line);padding-bottom:12px;margin-bottom:16px">'
+    + '<div class="academy">' + esc(ACADEMY) + '</div>'
     + '<h1>' + esc(s.student) + ' 학습 리포트</h1>'
-    + '<div class="sub">' + (s.cls ? esc(s.cls) + ' · ' : '') + todayStr() + '</div>'
+    + '<div class="sub">' + (s.cls ? esc(s.cls) + ' · ' : '') + todayStr() + '</div></div>'
     + '<div class="stats">'
     + '<div class="stat"><div class="n">' + assigned + '</div><div class="l">배정 책</div></div>'
     + '<div class="stat"><div class="n" style="color:var(--good)">' + done + '</div><div class="l">완독</div></div>'
     + '<div class="stat"><div class="n">' + (avg != null ? avg + '%' : '–') + '</div><div class="l">평균 점수</div></div>'
+    + '<div class="stat"><div class="n" style="color:var(--brand)">' + (passRate != null ? passRate + '%' : '–') + '</div><div class="l">통과율</div></div>'
     + '</div>'
+    + '<h2 style="margin-top:18px">📖 책별 결과</h2>'
     + '<table><tr><th>책</th><th style="text-align:center">단어</th><th style="text-align:center">퀴즈1</th><th style="text-align:center">퀴즈2</th><th style="text-align:center">녹음</th></tr>' + rows + '</table>'
     + '<div class="muted" style="margin-top:14px">🎉 = 원서퀴즈2까지 통과한 완독 · 통과 기준 ' + PASS + '점</div>';
 }
