@@ -12,18 +12,27 @@ insert into mini_classes (name)
 select v.name from (values ('초등 A반')) as v(name)
 where not exists (select 1 from mini_classes c where c.name = v.name);
 
--- 2) 학생 6명 (note = 반 이름)
-insert into mini_students (name, note, level)
-select v.name, v.note, v.level
+-- 2) 학생 6명 (note = 반 이름, student_id = 로그인 아이디)
+--    로그인: 학생 화면에서 아이디(예: seojun) + 이름(예: 김서준)
+insert into mini_students (name, note, student_id, level)
+select v.name, v.note, v.sid, v.level
 from (values
-  ('김서준', '초등 A반', 'AR 2.5'),
-  ('이하은', '초등 A반', 'AR 3.0'),
-  ('박도윤', '초등 A반', 'AR 1.5'),
-  ('최지우', '초등 A반', 'AR 2.0'),
-  ('정시아', '초등 A반', 'AR 3.5'),
-  ('강민준', '초등 A반', 'AR 1.0')
-) as v(name, note, level)
+  ('김서준', '초등 A반', 'seojun', 'AR 2.5'),
+  ('이하은', '초등 A반', 'haeun',  'AR 3.0'),
+  ('박도윤', '초등 A반', 'doyun',  'AR 1.5'),
+  ('최지우', '초등 A반', 'jiwoo',  'AR 2.0'),
+  ('정시아', '초등 A반', 'sia',    'AR 3.5'),
+  ('강민준', '초등 A반', 'minjun', 'AR 1.0')
+) as v(name, note, sid, level)
 where not exists (select 1 from mini_students s where s.name = v.name);
+
+-- 이미 아이디 없이 넣었던 데모 학생에게 아이디 채워주기 (재실행 안전)
+update mini_students set student_id='seojun' where name='김서준' and coalesce(student_id,'')='';
+update mini_students set student_id='haeun'  where name='이하은' and coalesce(student_id,'')='';
+update mini_students set student_id='doyun'  where name='박도윤' and coalesce(student_id,'')='';
+update mini_students set student_id='jiwoo'  where name='최지우' and coalesce(student_id,'')='';
+update mini_students set student_id='sia'    where name='정시아' and coalesce(student_id,'')='';
+update mini_students set student_id='minjun' where name='강민준' and coalesce(student_id,'')='';
 
 -- 3) 책 4권 (단어/원서퀴즈1/원서퀴즈2 개수를 채워 구성 pill 이 보이게 — 내용은 짧게)
 insert into mini_books (title, level, series, words, q1, q2, questions)
