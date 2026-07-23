@@ -49,11 +49,23 @@
     <div class="muted" id="bulkMsg" style="margin-top:8px"></div>
   </div>
 
-  <h2>📕 책 배정</h2>
-  <div class="card">
-    <select id="asgTarget"><option value="">대상 선택 (학생 또는 반)</option></select>
-    <select id="asgBook"><option value="">책 선택</option></select>
-    <button class="primary" onclick="doAssign()">＋ 배정</button>
+  <h2>📕 원서 배정 <span class="muted" style="font-weight:400">— 학생별 책 배정</span></h2>
+  <div class="assign-wrap">
+    <div class="assign-side">
+      <input id="asgSearch" placeholder="🔍 학생 검색" oninput="renderAsgStudents()" style="margin:0 0 8px">
+      <div id="asgStudents" class="muted">불러오는 중...</div>
+    </div>
+    <div class="assign-detail" id="asgDetail">
+      <div class="muted" style="text-align:center;padding:34px 10px;line-height:1.7">← 왼쪽에서 학생을 선택하면<br>그 학생의 책 배정 현황이 보여요</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="muted" style="font-weight:600;margin-bottom:6px">⚡ 빠른 배정 — 반 전체·전체 챕터 한 번에</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <select id="asgTarget" style="flex:1;min-width:150px;margin:0"><option value="">대상 선택 (학생 또는 반)</option></select>
+      <select id="asgBook" style="flex:1;min-width:150px;margin:0"><option value="">책 선택</option></select>
+      <button class="primary" onclick="doAssign()" style="white-space:nowrap">＋ 배정</button>
+    </div>
   </div>
 
   <h2>📊 원서 결과 대시보드 <span class="muted" style="font-weight:400">— 배정·결과·녹음 한눈에</span></h2>
@@ -133,6 +145,7 @@ function loadStudents() {
     if (!d.ok) throw new Error(d.message);
     STUDENTS = d.students || [];
     renderStudentTable();
+    renderAsgStudents();
   }).catch(function (e) { document.getElementById('studentList').textContent = '오류: ' + e.message; });
 }
 var editingId = null, assigningId = null;
@@ -304,6 +317,62 @@ function fillAssignBooks() {
     document.getElementById('asgBook').innerHTML = '<option value="">책 선택</option>' + bookOptions();
   });
 }
+// ── 원서 배정 (마스터-디테일: 학생 ↔ 책) ──
+var asgSel = null, asgStatus = {}, asgFilter = 'all';
+function renderAsgStudents() {
+  var box = document.getElementById('asgStudents');
+  if (!box) return;
+  if (!STUDENTS.length) { box.innerHTML = '<div class="muted">학생을 먼저 등록하세요</div>'; return; }
+  var q = (document.getElementById('asgSearch').value || '').trim().toLowerCase();
+  var list = STUDENTS.filter(function (s) { return !q || (s.name || '').toLowerCase().indexOf(q) > -1; });
+  box.innerHTML = list.map(function (s) {
+    return '<div class="asg-stu' + (asgSel === s.name ? ' sel' : '') + '" onclick="selectAsgStudent(\'' + esc(s.name).replace(/'/g, '') + '\')">'
+      + '<span class="asg-stu-n">' + esc(s.name) + '</span>'
+      + (s.level ? '<span class="asg-stu-l">' + esc(s.level) + '</span>' : '') + '</div>';
+  }).join('') || '<div class="muted">검색 결과 없음</div>';
+}
+function selectAsgStudent(name) {
+  asgSel = name; renderAsgStudents();
+  document.getElementById('asgDetail').innerHTML = '<div class="muted">불러오는 중...</div>';
+  fetch(API + '/api/mini-reader?action=assignments&student=' + encodeURIComponent(name)).then(function (r) { return r.json(); }).then(function (d) {
+    asgStatus = {};
+    (d.books || []).forEach(function (b) { var st = b.status || {}; asgStatus[b.id] = { read: !!(st[2] && st[2].percent >= 70) }; });
+    renderAsgDetail();
+  }).catch(function (e) { document.getElementById('asgDetail').innerHTML = '오류: ' + e.message; });
+}
+function setAsgFilter(f) { asgFilter = f; renderAsgDetail(); }
+function renderAsgDetail() {
+  if (!asgSel) return;
+  var assigned = 0, read = 0;
+  BOOKS.forEach(function (b) { var s = asgStatus[b.id]; if (s) { assigned++; if (s.read) read++; } });
+  var fbtn = function (f, label) { return '<button class="asg-fbtn' + (asgFilter === f ? ' on' : '') + '" onclick="setAsgFilter(\'' + f + '\')">' + label + '</button>'; };
+  var head = '<div class="asg-dhead"><div class="asg-dname">' + esc(asgSel) + ' <span class="muted" style="font-weight:400;font-size:13px">— 책 배정</span></div>'
+    + '<div class="asg-sum muted">총 ' + BOOKS.length + ' · 배정 ' + assigned + ' · 읽음 ' + read + '</div></div>'
+    + '<div class="asg-filters">' + fbtn('all', '전체') + fbtn('unassigned', '미배정') + fbtn('assigned', '배정됨') + '</div>';
+  var rows = BOOKS.filter(function (b) {
+    var s = asgStatus[b.id];
+    if (asgFilter === 'assigned') return !!s;
+    if (asgFilter === 'unassigned') return !s;
+    return true;
+  }).map(function (b) {
+    var s = asgStatus[b.id], badge, btn;
+    if (s && s.read) { badge = '<span class="pill p-good">읽음 ✅</span>'; btn = '<button class="asg-cancel" onclick="asgCancel(' + b.id + ')">취소</button>'; }
+    else if (s) { badge = '<span class="pill" style="background:#eef0fb;color:var(--brand)">배정됨</span>'; btn = '<button class="asg-cancel" onclick="asgCancel(' + b.id + ')">취소</button>'; }
+    else { badge = '<span class="pill" style="background:#f1f3fa;color:#9aa0b8">미배정</span>'; btn = '<button class="asg-assign" onclick="asgAssign(' + b.id + ')">배정</button>'; }
+    return '<div class="asg-book"><div class="asg-bt">' + esc(b.title) + (b.level ? '<span class="muted" style="font-size:11px"> · ' + esc(b.level) + '</span>' : '') + '</div>'
+      + '<div class="asg-br">' + badge + btn + '</div></div>';
+  }).join('') || '<div class="muted" style="padding:16px">해당하는 책이 없어요</div>';
+  document.getElementById('asgDetail').innerHTML = head + '<div class="asg-books">' + rows + '</div>';
+}
+function asgAssign(bookId) {
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign', student: asgSel, book: bookId }) })
+    .then(function (r) { return r.json(); }).then(function (d) { if (!d.ok) throw new Error(d.message); selectAsgStudent(asgSel); loadOverview(); }).catch(function (e) { alert('오류: ' + e.message); });
+}
+function asgCancel(bookId) {
+  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unassign', student: asgSel, book: bookId }) })
+    .then(function (r) { return r.json(); }).then(function (d) { if (!d.ok) throw new Error(d.message); selectAsgStudent(asgSel); loadOverview(); }).catch(function (e) { alert('오류: ' + e.message); });
+}
+
 // 배정값 파싱: "T:123" = 그 제목의 전체 챕터
 function parseBookVal(v, body) {
   if (String(v).indexOf('T:') === 0) { body.book = v.slice(2); body.wholeTitle = true; }

@@ -177,6 +177,31 @@ tr:last-child td { border-bottom: 0; }
 .ov-chip { font-size: 11px; font-weight: 700; color: var(--brand); background: #eef0fb; padding: 2px 9px; border-radius: 20px; }
 .ov-report { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--brand); text-decoration: none; }
 
+/* 원서 배정 — 마스터-디테일 (학생 ↔ 책) */
+.assign-wrap { display: grid; grid-template-columns: 220px 1fr; gap: 12px; }
+@media (max-width: 640px) { .assign-wrap { grid-template-columns: 1fr; } }
+.assign-side { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 12px; max-height: 480px; overflow: auto; }
+.assign-detail { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 16px; min-height: 220px; }
+.asg-stu { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 9px 11px; border-radius: 10px; cursor: pointer; margin-bottom: 3px; }
+.asg-stu:hover { background: #f2f4fd; }
+.asg-stu.sel { background: linear-gradient(135deg, var(--brand), var(--brand-2)); }
+.asg-stu.sel .asg-stu-n, .asg-stu.sel .asg-stu-l { color: #fff; }
+.asg-stu-n { font-weight: 700; font-size: 14px; }
+.asg-stu-l { font-size: 11px; color: var(--muted); }
+.asg-dhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 10px; }
+.asg-dname { font-weight: 800; font-size: 16px; }
+.asg-sum { font-size: 12px; }
+.asg-filters { display: flex; gap: 6px; margin-bottom: 8px; }
+.asg-fbtn { background: #eef0f8; color: #5a607a; border: 0; border-radius: 20px; padding: 5px 13px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.asg-fbtn.on { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; }
+.asg-books { display: flex; flex-direction: column; }
+.asg-book { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 4px; border-bottom: 1px solid var(--line); }
+.asg-book:last-child { border-bottom: 0; }
+.asg-bt { font-size: 14px; font-weight: 600; }
+.asg-br { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.asg-assign { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; border: 0; border-radius: 9px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.asg-cancel { background: #fce5ea; color: var(--bad); border: 0; border-radius: 9px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+
 @media print {
   body { background: #fff; }
   .btns, .noprint { display: none !important; }
