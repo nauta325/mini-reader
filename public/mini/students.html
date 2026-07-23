@@ -11,7 +11,7 @@
 <body>
 <div class="wrap">
   <div class="top"><h1>👥 학생 관리</h1>
-    <div class="nav"><a href="/mini/index.html">홈</a><a href="/mini/books.html">원서 관리 →</a></div>
+    <div class="nav"><a href="/mini/index.html">홈</a><a href="/mini/assign.html">원서 배정·결과 →</a><a href="/mini/books.html">원서 관리 →</a></div>
   </div>
 
   <h2>🏫 반 설정</h2>
@@ -48,29 +48,6 @@
     </div>
     <div class="muted" id="bulkMsg" style="margin-top:8px"></div>
   </div>
-
-  <h2>📕 원서 배정 <span class="muted" style="font-weight:400">— 학생별 책 배정</span></h2>
-  <div class="assign-wrap">
-    <div class="assign-side">
-      <input id="asgSearch" placeholder="🔍 학생 검색" oninput="renderAsgStudents()" style="margin:0 0 8px">
-      <div id="asgStudents" class="muted">불러오는 중...</div>
-    </div>
-    <div class="assign-detail" id="asgDetail">
-      <div class="muted" style="text-align:center;padding:34px 10px;line-height:1.7">← 왼쪽에서 학생을 선택하면<br>그 학생의 책 배정 현황이 보여요</div>
-    </div>
-  </div>
-  <div class="card" style="margin-top:12px">
-    <div class="muted" style="font-weight:600;margin-bottom:6px">⚡ 빠른 배정 — 반 전체·전체 챕터 한 번에</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <select id="asgTarget" style="flex:1;min-width:150px;margin:0"><option value="">대상 선택 (학생 또는 반)</option></select>
-      <select id="asgBook" style="flex:1;min-width:150px;margin:0"><option value="">책 선택</option></select>
-      <button class="primary" onclick="doAssign()" style="white-space:nowrap">＋ 배정</button>
-    </div>
-  </div>
-
-  <h2>📊 원서 결과 대시보드 <span class="muted" style="font-weight:400">— 배정·결과·녹음 한눈에</span></h2>
-  <div style="margin-bottom:12px"><select id="ovClass" onchange="loadOverview()" style="max-width:220px"><option value="">전체 반</option></select></div>
-  <div id="overview">불러오는 중...</div>
 </div>
 
 <script>
@@ -118,7 +95,7 @@ function saveClass(id) {
   fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-class', id: id, name: v }) })
     .then(function (r) { return r.json(); }).then(function (d) {
       if (!d.ok) throw new Error(d.message);
-      editingClassId = null; loadClasses(); loadStudents(); fillAssignTargets(); fillOvClass(); loadOverview();
+      editingClassId = null; loadClasses(); loadStudents();
     }).catch(function (e) { alert('오류: ' + e.message); });
 }
 function delClass(id, name) {
@@ -126,7 +103,7 @@ function delClass(id, name) {
   fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-class', id: id }) })
     .then(function (r) { return r.json(); }).then(function (d) {
       if (!d.ok) throw new Error(d.message);
-      loadClasses(); loadStudents(); fillAssignTargets(); fillOvClass(); loadOverview();
+      loadClasses(); loadStudents();
     }).catch(function (e) { alert('오류: ' + e.message); });
 }
 function addClass() {
@@ -140,12 +117,12 @@ function addClass() {
   }).catch(function (e) { alert('오류: ' + e.message); });
 }
 
+// ── 학생 등록 ──
 function loadStudents() {
   fetch(API + '/api/mini-reader?action=students').then(function (r) { return r.json(); }).then(function (d) {
     if (!d.ok) throw new Error(d.message);
     STUDENTS = d.students || [];
     renderStudentTable();
-    renderAsgStudents();
   }).catch(function (e) { document.getElementById('studentList').textContent = '오류: ' + e.message; });
 }
 var editingId = null, assigningId = null;
@@ -194,7 +171,7 @@ function doAssignRow(name, id) {
   fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     .then(function (r) { return r.json(); }).then(function (d) {
       if (!d.ok) throw new Error(d.message);
-      assigningId = null; renderStudentTable(); loadOverview();
+      assigningId = null; renderStudentTable();
     }).catch(function (e) { alert('오류: ' + e.message); });
 }
 function delStudent(id, name) {
@@ -202,7 +179,7 @@ function delStudent(id, name) {
   fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-student', id: id }) })
     .then(function (r) { return r.json(); }).then(function (d) {
       if (!d.ok) throw new Error(d.message);
-      loadStudents(); fillAssignTargets(); loadOverview();
+      loadStudents();
     }).catch(function (e) { alert('오류: ' + e.message); });
 }
 function saveStudent(id) {
@@ -214,7 +191,7 @@ function saveStudent(id) {
     body: JSON.stringify({ action: 'update-student', id: id, name: name, student_id: g('e_id_'), note: g('e_class_'), level: g('e_level_'), phone: g('e_phone_') })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (!d.ok) throw new Error(d.message);
-    editingId = null; loadStudents(); fillAssignTargets(); fillOvClass(); loadOverview();
+    editingId = null; loadStudents();
   }).catch(function (e) { alert('오류: ' + e.message); });
 }
 function addStudent() {
@@ -229,7 +206,7 @@ function addStudent() {
     if (!d.ok) throw new Error(d.message);
     document.getElementById('sName').value = ''; document.getElementById('sId').value = '';
     document.getElementById('sLevel').value = ''; document.getElementById('sPhone').value = '';
-    loadStudents(); fillAssignTargets();
+    loadStudents();
   }).catch(function (e) { alert('오류: ' + e.message); });
 }
 
@@ -276,25 +253,11 @@ function doBulk() {
       if (!d.ok) throw new Error(d.message);
       document.getElementById('bulkMsg').innerHTML = '✅ <b>' + d.added + '명</b> 등록됐어요!';
       document.getElementById('bulkText').value = '';
-      loadClasses(); loadStudents(); fillAssignTargets(); fillOvClass();
+      loadClasses(); loadStudents();
     }).catch(function (e) { document.getElementById('bulkMsg').textContent = '오류: ' + e.message; });
 }
 
-// ── 책 배정 ──
-// 대상 드롭다운(학생 + 반 전체) 채우기
-function fillAssignTargets() {
-  Promise.all([
-    fetch(API + '/api/mini-reader?action=students').then(function (r) { return r.json(); }),
-    fetch(API + '/api/mini-reader?action=classes').then(function (r) { return r.json(); })
-  ]).then(function (res) {
-    var students = (res[0].students || []), classes = (res[1].classes || []);
-    var html = '<option value="">대상 선택 (학생 또는 반)</option>';
-    if (students.length) html += '<optgroup label="학생">' + students.map(function (s) { return '<option value="s:' + esc(s.name) + '">' + esc(s.name) + '</option>'; }).join('') + '</optgroup>';
-    if (classes.length) html += '<optgroup label="반 전체">' + classes.map(function (c) { return '<option value="c:' + esc(c.name) + '">' + esc(c.name) + ' 전체</option>'; }).join('') + '</optgroup>';
-    document.getElementById('asgTarget').innerHTML = html;
-  });
-}
-// 책 드롭다운
+// ── 학생 표의 빠른 배정에 쓰는 책 목록 ──
 // 책 옵션: 챕터북(같은 제목 여러 행)은 "전체 챕터" 옵션도 함께
 function bookOptions() {
   var byTitle = {};
@@ -314,158 +277,20 @@ function bookOptions() {
 function fillAssignBooks() {
   fetch(API + '/api/mini-reader?action=books').then(function (r) { return r.json(); }).then(function (d) {
     BOOKS = d.books || [];
-    document.getElementById('asgBook').innerHTML = '<option value="">책 선택</option>' + bookOptions();
   });
 }
-// ── 원서 배정 (마스터-디테일: 학생 ↔ 책) ──
-var asgSel = null, asgStatus = {}, asgFilter = 'all';
-function renderAsgStudents() {
-  var box = document.getElementById('asgStudents');
-  if (!box) return;
-  if (!STUDENTS.length) { box.innerHTML = '<div class="muted">학생을 먼저 등록하세요</div>'; return; }
-  var q = (document.getElementById('asgSearch').value || '').trim().toLowerCase();
-  var list = STUDENTS.filter(function (s) { return !q || (s.name || '').toLowerCase().indexOf(q) > -1; });
-  box.innerHTML = list.map(function (s) {
-    return '<div class="asg-stu' + (asgSel === s.name ? ' sel' : '') + '" onclick="selectAsgStudent(\'' + esc(s.name).replace(/'/g, '') + '\')">'
-      + '<span class="asg-stu-n">' + esc(s.name) + '</span>'
-      + (s.level ? '<span class="asg-stu-l">' + esc(s.level) + '</span>' : '') + '</div>';
-  }).join('') || '<div class="muted">검색 결과 없음</div>';
-}
-function selectAsgStudent(name) {
-  asgSel = name; renderAsgStudents();
-  document.getElementById('asgDetail').innerHTML = '<div class="muted">불러오는 중...</div>';
-  fetch(API + '/api/mini-reader?action=assignments&student=' + encodeURIComponent(name)).then(function (r) { return r.json(); }).then(function (d) {
-    asgStatus = {};
-    (d.books || []).forEach(function (b) { var st = b.status || {}; asgStatus[b.id] = { read: !!(st[2] && st[2].percent >= 70) }; });
-    renderAsgDetail();
-  }).catch(function (e) { document.getElementById('asgDetail').innerHTML = '오류: ' + e.message; });
-}
-function setAsgFilter(f) { asgFilter = f; renderAsgDetail(); }
-function renderAsgDetail() {
-  if (!asgSel) return;
-  var assigned = 0, read = 0;
-  BOOKS.forEach(function (b) { var s = asgStatus[b.id]; if (s) { assigned++; if (s.read) read++; } });
-  var fbtn = function (f, label) { return '<button class="asg-fbtn' + (asgFilter === f ? ' on' : '') + '" onclick="setAsgFilter(\'' + f + '\')">' + label + '</button>'; };
-  var head = '<div class="asg-dhead"><div class="asg-dname">' + esc(asgSel) + ' <span class="muted" style="font-weight:400;font-size:13px">— 책 배정</span></div>'
-    + '<div class="asg-sum muted">총 ' + BOOKS.length + ' · 배정 ' + assigned + ' · 읽음 ' + read + '</div></div>'
-    + '<div class="asg-filters">' + fbtn('all', '전체') + fbtn('unassigned', '미배정') + fbtn('assigned', '배정됨') + '</div>';
-  var rows = BOOKS.filter(function (b) {
-    var s = asgStatus[b.id];
-    if (asgFilter === 'assigned') return !!s;
-    if (asgFilter === 'unassigned') return !s;
-    return true;
-  }).map(function (b) {
-    var s = asgStatus[b.id], badge, btn;
-    if (s && s.read) { badge = '<span class="pill p-good">읽음 ✅</span>'; btn = '<button class="asg-cancel" onclick="asgCancel(' + b.id + ')">취소</button>'; }
-    else if (s) { badge = '<span class="pill" style="background:#eef0fb;color:var(--brand)">배정됨</span>'; btn = '<button class="asg-cancel" onclick="asgCancel(' + b.id + ')">취소</button>'; }
-    else { badge = '<span class="pill" style="background:#f1f3fa;color:#9aa0b8">미배정</span>'; btn = '<button class="asg-assign" onclick="asgAssign(' + b.id + ')">배정</button>'; }
-    return '<div class="asg-book"><div class="asg-bt">' + esc(b.title) + (b.level ? '<span class="muted" style="font-size:11px"> · ' + esc(b.level) + '</span>' : '') + '</div>'
-      + '<div class="asg-br">' + badge + btn + '</div></div>';
-  }).join('') || '<div class="muted" style="padding:16px">해당하는 책이 없어요</div>';
-  document.getElementById('asgDetail').innerHTML = head + '<div class="asg-books">' + rows + '</div>';
-}
-function asgAssign(bookId) {
-  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign', student: asgSel, book: bookId }) })
-    .then(function (r) { return r.json(); }).then(function (d) { if (!d.ok) throw new Error(d.message); selectAsgStudent(asgSel); loadOverview(); }).catch(function (e) { alert('오류: ' + e.message); });
-}
-function asgCancel(bookId) {
-  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unassign', student: asgSel, book: bookId }) })
-    .then(function (r) { return r.json(); }).then(function (d) { if (!d.ok) throw new Error(d.message); selectAsgStudent(asgSel); loadOverview(); }).catch(function (e) { alert('오류: ' + e.message); });
-}
-
 // 배정값 파싱: "T:123" = 그 제목의 전체 챕터
 function parseBookVal(v, body) {
   if (String(v).indexOf('T:') === 0) { body.book = v.slice(2); body.wholeTitle = true; }
   else body.book = v;
   return body;
 }
-function doAssign() {
-  var t = document.getElementById('asgTarget').value, book = document.getElementById('asgBook').value;
-  if (!t || !book) { alert('대상과 책을 선택하세요'); return; }
-  var body = parseBookVal(book, { action: 'assign' });
-  if (t.indexOf('s:') === 0) body.student = t.slice(2); else body.cls = t.slice(2);
-  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    .then(function (r) { return r.json(); }).then(function (d) {
-      if (!d.ok) throw new Error(d.message); loadOverview();
-    }).catch(function (e) { alert('오류: ' + e.message); });
-}
-function unassign(student, book) {
-  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unassign', student: student, book: book }) })
-    .then(function (r) { return r.json(); }).then(function (d) { if (!d.ok) throw new Error(d.message); loadOverview(); })
-    .catch(function (e) { alert('오류: ' + e.message); });
-}
-
-// 반 필터 채우기
-function fillOvClass() {
-  fetch(API + '/api/mini-reader?action=classes').then(function (r) { return r.json(); }).then(function (d) {
-    document.getElementById('ovClass').innerHTML = '<option value="">전체 반</option>' + (d.classes || []).map(function (c) { return '<option>' + esc(c.name) + '</option>'; }).join('');
-  });
-}
-
-// 학생별 현황 (배정 + 결과 + 녹음)
-function loadOverview() {
-  var cls = document.getElementById('ovClass').value;
-  var url = API + '/api/mini-reader?action=overview' + (cls ? '&class=' + encodeURIComponent(cls) : '');
-  document.getElementById('overview').innerHTML = '<div class="muted">불러오는 중...</div>';
-  fetch(url).then(function (r) { return r.json(); }).then(function (d) {
-    if (!d.ok) throw new Error(d.message);
-    if (!d.students.length) { document.getElementById('overview').innerHTML = '<div class="muted">학생이 없어요</div>'; return; }
-    var PASS = 70;
-    // ── 집계 (통계 카드 + 점수 분포) ──
-    var buckets = [0, 0, 0, 0, 0], totalQuiz = 0, passCount = 0, active = 0;
-    d.students.forEach(function (s) {
-      var did = false;
-      (s.books || []).forEach(function (b) {
-        var q = b.quizzes || {};
-        [1, 2].forEach(function (t) {
-          if (q[t]) { totalQuiz++; did = true; var p = q[t].percent; if (p >= PASS) passCount++; var bi = p < 60 ? 0 : p < 70 ? 1 : p < 80 ? 2 : p < 90 ? 3 : 4; buckets[bi]++; }
-        });
-      });
-      if (did) active++;
-    });
-    var avgPass = totalQuiz ? Math.round(passCount / totalQuiz * 100) : 0;
-    var maxB = Math.max.apply(null, buckets) || 1;
-    var labels = ['0-59', '60-69', '70-79', '80-89', '90-100'];
-    var dash = '<div class="dash-stats">'
-      + '<div class="dash-stat accent"><div class="l">활동 학생 수</div><div class="n">' + active + '</div></div>'
-      + '<div class="dash-stat accent"><div class="l">푼 퀴즈 수</div><div class="n">' + totalQuiz + '</div></div>'
-      + '<div class="dash-stat accent"><div class="l">평균 통과율 (통과 ' + PASS + '%)</div><div class="n good">' + avgPass + '%</div></div>'
-      + '</div>';
-    dash += '<div class="card"><div style="font-weight:700;font-size:14px;margin-bottom:4px">점수 분포</div><div class="bars">'
-      + buckets.map(function (v, i) { return '<div class="bar-col"><div class="bv">' + v + '</div><div class="bar' + (v ? '' : ' empty') + '" style="height:' + Math.round(v / maxB * 90) + '%"></div><div class="bl">' + labels[i] + '</div></div>'; }).join('')
-      + '</div></div>';
-    // ── 학생별 상세 카드 ──
-    var qc = function (x) { return x ? '<span class="pill ' + (x.percent >= PASS ? 'p-good' : 'p-bad') + '">' + x.percent + '%</span>' : '<span class="muted">–</span>'; };
-    var detail = d.students.map(function (s) {
-      var head = '<div class="ov-head"><span class="ov-name">' + esc(s.student) + '</span>'
-        + (s.cls ? '<span class="ov-chip">' + esc(s.cls) + '</span>' : '')
-        + '<a class="ov-report" href="/mini/report.html?student=' + encodeURIComponent(s.student) + '" target="_blank">📄 리포트</a></div>';
-      if (!s.books.length) return '<div class="ov-card">' + head + '<div class="muted">배정된 책이 없어요</div></div>';
-      var rows = s.books.map(function (b) {
-        var q = b.quizzes || {};
-        var word = q[0] ? '<span class="pill p-good">완료</span>' : '<span class="muted">–</span>';
-        var rec = b.audio ? '<audio controls src="' + b.audio + '" style="width:120px;height:28px;vertical-align:middle"></audio>' : '';
-        var cancel = b.assigned ? '<a href="#" onclick="unassign(\'' + esc(s.student).replace(/'/g, '') + '\',' + b.book_id + ');return false" style="color:#e0455e;text-decoration:none">✕</a>' : '';
-        return '<tr><td>' + esc(b.title) + (b.level ? '<div class="muted" style="font-size:11px">' + esc(b.level) + '</div>' : '') + '</td>'
-          + '<td style="text-align:center">' + word + '</td>'
-          + '<td style="text-align:center">' + qc(q[1]) + '</td>'
-          + '<td style="text-align:center">' + qc(q[2]) + '</td>'
-          + '<td>' + rec + '</td><td style="text-align:right">' + cancel + '</td></tr>';
-      }).join('');
-      return '<div class="ov-card">' + head + '<table><tr><th>책</th><th style="text-align:center">단어</th><th style="text-align:center">퀴즈1</th><th style="text-align:center">퀴즈2</th><th>녹음</th><th></th></tr>' + rows + '</table></div>';
-    }).join('');
-    document.getElementById('overview').innerHTML = dash + '<h2 style="margin-top:20px">👧 학생별 상세</h2>' + detail;
-  }).catch(function (e) { document.getElementById('overview').textContent = '오류: ' + e.message; });
-}
 
 function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
 
 loadClasses();
 loadStudents();
-fillAssignTargets();
 fillAssignBooks();
-fillOvClass();
-loadOverview();
 </script>
 </body>
 </html>
