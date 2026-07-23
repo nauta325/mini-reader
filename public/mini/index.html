@@ -13,26 +13,63 @@
   /* 색은 여기 --brand / --brand-2 만 바꾸면 됩니다 */
   :root { --brand:#5b6ee0; --brand-2:#8266e6; }
   * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; background:linear-gradient(170deg,#e7ecfb,#f6f7fc 55%); font-family:'Noto Sans KR',system-ui,-apple-system,sans-serif; -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
-  .logo { font-size:66px; filter:drop-shadow(0 6px 14px rgba(91,110,224,.28)); }
-  h1 { font-size:27px; margin:8px 0 4px; color:#202538; font-weight:800; letter-spacing:-.01em; }
-  .sub { color:#8a90a6; margin-bottom:30px; font-size:14px; }
-  a.btn { display:block; width:100%; max-width:340px; text-align:center; text-decoration:none; padding:18px; border-radius:16px; font-size:16px; font-weight:700; margin-bottom:13px; transition:transform .1s ease, box-shadow .18s ease; }
-  a.btn:hover { transform:translateY(-2px); }
-  .student { background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:#fff; box-shadow:0 8px 22px rgba(91,110,224,.32); }
-  .teacher { background:#fff; color:var(--brand); border:1.5px solid #d9def4; box-shadow:0 4px 14px rgba(40,50,90,.06); }
-  .tip { margin-top:20px; color:#aab; font-size:12px; text-align:center; max-width:320px; line-height:1.6; }
+  body { margin:0; min-height:100vh; background:linear-gradient(170deg,#e7ecfb,#f6f7fc 55%); font-family:'Noto Sans KR',system-ui,-apple-system,sans-serif; -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; align-items:center; padding:40px 22px 32px; }
+  .shell { width:100%; max-width:380px; }
+  .hero { text-align:center; margin-bottom:26px; }
+  .logo { font-size:60px; filter:drop-shadow(0 6px 14px rgba(91,110,224,.28)); line-height:1; }
+  h1 { font-size:27px; margin:10px 0 4px; color:#202538; font-weight:800; letter-spacing:-.01em; }
+  .sub { color:#8a90a6; font-size:14px; }
+
+  /* 학생 대형 카드 */
+  a.student { display:flex; align-items:center; gap:14px; text-decoration:none; padding:20px; border-radius:20px; margin-bottom:26px;
+    background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:#fff; box-shadow:0 12px 28px rgba(91,110,224,.34); transition:transform .12s ease, box-shadow .18s ease; }
+  a.student:hover { transform:translateY(-2px); box-shadow:0 16px 34px rgba(91,110,224,.42); }
+  a.student .ic { font-size:34px; flex:0 0 auto; }
+  a.student .tt { display:block; font-size:18px; font-weight:800; }
+  a.student .dd { display:block; font-size:12.5px; opacity:.9; margin-top:2px; }
+  a.student .arw { margin-left:auto; font-size:22px; opacity:.85; }
+
+  .label { font-size:12px; font-weight:800; color:#9298b0; letter-spacing:.04em; margin:0 4px 10px; text-transform:uppercase; }
+
+  /* 선생님 도구 카드 */
+  a.tool { display:flex; align-items:center; gap:13px; text-decoration:none; padding:15px 16px; border-radius:15px; margin-bottom:11px;
+    background:#fff; border:1.5px solid #e4e8f6; box-shadow:0 4px 14px rgba(40,50,90,.05); transition:transform .12s ease, box-shadow .18s ease, border-color .18s; }
+  a.tool:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(40,50,90,.1); border-color:var(--brand); }
+  a.tool .ic { width:44px; height:44px; flex:0 0 auto; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; background:#eef1fc; }
+  a.tool .tt { display:block; font-size:15.5px; font-weight:800; color:#242a40; }
+  a.tool .dd { display:block; font-size:12px; color:#9298b0; margin-top:1px; }
+  a.tool .arw { margin-left:auto; color:#c3c8dc; font-size:20px; }
+
+  .tip { margin-top:22px; color:#aab; font-size:12px; text-align:center; line-height:1.6; }
 </style>
 </head>
 <body>
-  <div class="logo">📕</div>
-  <h1>미니 원서</h1>
-  <div class="sub">읽고 · 풀고 · 확인하고</div>
+  <div class="shell">
+    <div class="hero">
+      <div class="logo">📕</div>
+      <h1>미니 원서</h1>
+      <div class="sub">읽고 · 풀고 · 확인하고</div>
+    </div>
 
-  <a class="btn student" href="/mini/reader.html">👦 학생 — 원서 퀴즈 풀기</a>
-  <a class="btn teacher" href="/mini/students.html">👥 학생 관리 — 등록 · 배정 · 결과</a>
-  <a class="btn teacher" href="/mini/books.html">📚 원서 관리 — 퀴즈 만들기 · 목록</a>
+    <a class="student" href="/mini/reader.html">
+      <span class="ic">👦</span>
+      <span><span class="tt">학생 시작하기</span><span class="dd">원서 읽고 퀴즈 풀기 · 포인트 모으기</span></span>
+      <span class="arw">→</span>
+    </a>
 
-  <div class="tip">📱 휴대폰에서 <b>공유 → 홈 화면에 추가</b> 하면 앱처럼 아이콘으로 실행돼요.</div>
+    <div class="label">선생님 도구</div>
+    <a class="tool" href="/mini/students.html">
+      <span class="ic">👥</span>
+      <span><span class="tt">학생 관리</span><span class="dd">등록 · 배정 · 대시보드 · 결과</span></span>
+      <span class="arw">›</span>
+    </a>
+    <a class="tool" href="/mini/books.html">
+      <span class="ic">📚</span>
+      <span><span class="tt">원서 관리</span><span class="dd">책 등록 · 퀴즈 · 워크시트 만들기</span></span>
+      <span class="arw">›</span>
+    </a>
+
+    <div class="tip">📱 휴대폰에서 <b>공유 → 홈 화면에 추가</b> 하면 앱처럼 아이콘으로 실행돼요.</div>
+  </div>
 </body>
 </html>
