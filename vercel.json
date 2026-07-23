@@ -3,5 +3,8 @@
     "api/mini-reader.js": {
       "maxDuration": 300
     }
-  }
+  },
+  "redirects": [
+    { "source": "/", "destination": "/mini/", "permanent": false }
+  ]
 }
