@@ -41,6 +41,15 @@
       <input id="aiVideo" placeholder="📺 유튜브 읽어주기 영상 링크 (선택)" style="flex:1" />
       <button class="ghost" onclick="findYt('aiTitle','aiChapter')" style="white-space:nowrap">🔍 유튜브에서 찾기</button>
     </div>
+    <details style="margin:2px 0 6px">
+      <summary class="muted" style="cursor:pointer">🎬 유튜브 스크립트를 지문으로 자동 가져오기 (북마크릿)</summary>
+      <div class="muted" style="line-height:1.8;margin-top:6px">
+        1. 아래 <b>[📎 유튜브 스크립트 담기]</b>를 <b>북마크바로 드래그</b>해서 저장 (한 번만)<br>
+        2. 유튜브 영상에서 <b>더보기 → 스크립트 표시</b>로 스크립트 패널 열기<br>
+        3. 저장한 북마크 클릭 → 이 화면이 새 탭으로 열리며 <b>제목·지문이 자동으로 채워져요</b><br>
+        <a id="ytBookmarklet" class="btn ghost" style="display:inline-block;margin-top:6px">📎 유튜브 스크립트 담기</a>
+      </div>
+    </details>
     <textarea id="aiText" rows="6" placeholder="영어 지문(원서 본문)을 붙여넣으세요"></textarea>
     <div style="display:flex;gap:10px;align-items:end;margin-top:6px;flex-wrap:wrap">
       <label class="muted" style="flex:1;min-width:90px">단어 개수<input id="nWords" type="number" value="8" min="1" max="15" /></label>
@@ -408,12 +417,48 @@ function findYt(titleId, chapterId) {
   window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(q), '_blank');
 }
 
+// ── 유튜브 스크립트 북마크릿 ──
+// 유튜브 스크립트 패널(transcript-segment-view-model)을 읽어 이 화면으로 제목·지문 전달.
+// 도메인은 현재 origin으로 자동 설정돼서 배포 주소가 바뀌어도 그대로 동작.
+function buildBookmarklet() {
+  var target = location.origin + '/mini/books.html';
+  var code = "(function(){try{var n=document.querySelectorAll('transcript-segment-view-model');"
+    + "if(!n.length){alert('스크립트 패널을 먼저 열어주세요 (더보기 → 스크립트 표시)');return;}"
+    + "var a=[];for(var i=0;i<n.length;i++){var el=n[i].querySelector('[role=text]')||n[i].querySelector('.ytAttributedStringHost');"
+    + "var t=el?(el.textContent||'').trim():'';if(t&&!/^\\[.*\\]$/.test(t))a.push(t);}"
+    + "var s=a.join(' ').replace(/\\s+/g,' ').trim();if(!s){alert('스크립트가 비어 있어요.');return;}"
+    + "var title=document.title.replace(' - YouTube','');"
+    + "window.open('" + target + "#yt='+encodeURIComponent(JSON.stringify({title:title,text:s,video:location.href.split('&')[0]})),'_blank');"
+    + "}catch(e){alert('오류: '+e.message);}})();";
+  return 'javascript:' + code;
+}
+function initBookmarklet() {
+  var a = document.getElementById('ytBookmarklet');
+  if (a) a.setAttribute('href', buildBookmarklet());
+}
+// URL의 #yt=... (북마크릿이 넘긴 유튜브 스크립트) → AI 생성 칸 자동 채우기
+function loadFromHash() {
+  var m = (location.hash || '').match(/[#&]yt=([^&]+)/);
+  if (!m) return;
+  try {
+    var data = JSON.parse(decodeURIComponent(m[1]));
+    if (data.title) document.getElementById('aiTitle').value = data.title;
+    if (data.text) document.getElementById('aiText').value = data.text;
+    if (data.video) document.getElementById('aiVideo').value = data.video;
+    history.replaceState(null, '', location.pathname + location.search);   // 새로고침 시 재적용 방지
+    document.getElementById('aiMsg').innerHTML = '🎬 유튜브 스크립트를 불러왔어요! 시리즈·레벨·챕터를 확인하고 <b>AI로 생성 &amp; 저장</b>을 누르세요.';
+    document.getElementById('aiTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) { document.getElementById('aiMsg').textContent = '유튜브 데이터를 읽지 못했어요: ' + e.message; }
+}
+
 function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
 
 fillLevels();
 loadSettings();
 addQ();
 loadBooks();
+initBookmarklet();
+loadFromHash();
 </script>
 </body>
 </html>
