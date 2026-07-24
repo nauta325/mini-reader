@@ -442,8 +442,10 @@ module.exports = async function handler(req, res) {
     }
 
     // ── (선생님) 책 상세 (수정용) ──
+    // select=* 로 읽어서, DB에 video_url·passage 같은 선택 열이 아직 없어도 에러 안 나게 함
+    // (열을 콕 집으면 스키마 캐시가 어긋날 때 42703이 남)
     if (req.method === 'GET' && action === 'book-detail') {
-      const rows = await sb('mini_books?id=eq.' + encodeURIComponent(req.query.id) + '&select=id,title,level,series,chapter,video_url,words,q1,q2,questions,passage');
+      const rows = await sb('mini_books?id=eq.' + encodeURIComponent(req.query.id) + '&select=*');
       if (!rows || !rows.length) return res.status(404).json({ ok: false, message: '책 없음' });
       const b = rows[0];
       return res.json({ ok: true, book: { id: b.id, title: b.title, level: b.level, series: b.series, chapter: b.chapter, video_url: b.video_url || '', words: b.words || [], q1: (b.q1 && b.q1.length ? b.q1 : b.questions) || [], q2: b.q2 || [], passage: b.passage || '' } });
