@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>워크시트 만들기</title>
 <meta name="theme-color" content="#5b6ee0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Jua&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/mini/mini.css">
 <style>
   /* 워크시트 전용 */
@@ -20,26 +23,47 @@
   .p-vocab { background:#fdeede; color:#b56a1e; }
   .wslist table { width:100%; }
   .wslist td { padding:9px 6px; }
-  .ws-head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid var(--brand); padding-bottom:8px; margin-bottom:14px; }
-  .ws-title { font-size:19px; font-weight:800; }
-  .ws-meta { font-size:12px; color:#888; text-align:right; }
-  .ws-sec { font-weight:700; margin:18px 0 8px; }
-  .ws-q { margin:12px 0; }
-  .ws-q .n { color:var(--brand); font-weight:800; margin-right:6px; }
-  .line { border-bottom:1px solid #cfd4e4; height:26px; margin:8px 0; }
-  .wtable { width:100%; border-collapse:collapse; }
-  .wtable td { border:1px solid #dfe3ee; padding:9px 10px; font-size:14px; }
-  .wtable .en { width:42%; font-weight:600; }
-  .bank { border:1.5px dashed var(--brand); border-radius:10px; padding:8px 12px; margin:8px 0; font-weight:600; letter-spacing:.3px; }
-  .mtable { width:100%; border-collapse:collapse; }
-  .mtable td { padding:8px 6px; font-size:14px; border:0; }
-  .mtable .mid { width:80px; }
-  .key { background:#f6f7fc; border-radius:10px; padding:12px; margin-top:16px; font-size:13px; }
   .wslist a { text-decoration:none; }
+
+  /* ── 워크시트(인쇄물) — 저학년용 아기자기 스타일 ── */
+  #sheet { font-family:'Fredoka','Jua','Noto Sans KR',system-ui,sans-serif; color:#3a3f52; }
+  .ws-head { display:flex; justify-content:space-between; align-items:center; gap:12px;
+    background:linear-gradient(135deg,#eef1ff,#f6f0ff); border-radius:18px; padding:14px 18px; margin-bottom:18px; }
+  .ws-title { font-size:22px; font-weight:700; color:var(--brand); line-height:1.25; }
+  .ws-head .muted { color:#9096b0; font-size:12.5px; }
+  .ws-meta { font-size:13px; color:#6b7089; text-align:right; background:#fff; border-radius:12px;
+    padding:8px 12px; border:2px dashed #cdd4f5; line-height:1.9; white-space:nowrap; }
+  .ws-sec { display:inline-block; font-weight:700; font-size:15px; margin:22px 0 10px; color:#5a4bb0;
+    background:#efeaff; border-radius:999px; padding:5px 15px; }
+  .ws-q { position:relative; margin:15px 0; padding-left:38px; line-height:1.6; font-size:15px;
+    break-inside:avoid; page-break-inside:avoid; }
+  .ws-q .n { position:absolute; left:0; top:0; min-width:26px; height:26px; padding:0 6px; box-sizing:border-box;
+    border-radius:9px; background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:#fff;
+    font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; margin:0; }
+  .line { border:none; border-bottom:2.5px dotted #c3c9e8; height:24px; margin:10px 0; }
+  .bank { border:2.5px dashed var(--brand-2); border-radius:14px; padding:10px 14px; margin:10px 0;
+    font-weight:600; background:#faf8ff; color:#5a4bb0; letter-spacing:.2px; }
+  .wtable { width:100%; border-collapse:separate; border-spacing:0 6px; }
+  .wtable td { border:2px solid #e6e9f8; padding:11px 12px; font-size:15px; background:#fff; }
+  .wtable td.en { width:42%; font-weight:600; color:#454b60; border-radius:12px 0 0 12px; }
+  .wtable td:last-child { border-radius:0 12px 12px 0; }
+  .mtable { width:100%; border-collapse:collapse; }
+  .mtable td { padding:9px 6px; font-size:15px; border:0; }
+  .mtable .mid { width:80px; }
+  .key { background:#fff7ec; border:2px dashed #f0c987; border-radius:16px; padding:14px 16px;
+    margin-top:20px; font-size:13px; color:#8a6a2f; line-height:1.7; break-inside:avoid; page-break-inside:avoid; }
+
+  /* ── 인쇄 정렬 (A4 여백 · 문항이 페이지 경계에서 안 잘리게) ── */
+  @page { size:A4; margin:14mm 14mm 16mm; }
   @media print {
     .seg, .builder, .topbar, .wscard { display:none !important; }
     .key.hide { display:none !important; }
-    body { background:#fff; }
+    html, body { background:#fff !important; }
+    .wrap, .wrap.mid { max-width:none !important; width:auto !important; margin:0 !important; padding:0 !important; }
+    #sheet { box-shadow:none !important; border:none !important; border-radius:0 !important;
+      padding:0 !important; margin:0 !important; background:#fff !important; }
+    .ws-head { break-inside:avoid; }
+    .wtable tr, .mtable tr { break-inside:avoid; }
   }
 </style>
 </head>
