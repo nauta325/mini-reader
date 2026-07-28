@@ -674,13 +674,20 @@ module.exports = async function handler(req, res) {
       const { book_id, type, stage, count } = req.body || {};
       let book = null;
       if (book_id) {
-        const rows = await sb('mini_books?id=eq.' + encodeURIComponent(book_id) + '&select=id,title,level,chapter,words,passage');
+        const rows = await sb('mini_books?id=eq.' + encodeURIComponent(book_id) + '&select=*');
         book = rows && rows[0];
       }
       const title = (book && dispTitle(book)) || '워크시트';
       const level = (book && book.level) || '';
       const words = (book && book.words) || [];
       const text = (req.body && req.body.passage) || (book && book.passage) || '';
+      // 붙여넣은 지문을 책에 저장 → 다음엔 자동으로 채워짐 (한 번만 넣으면 됨)
+      const pasted = req.body && req.body.passage ? String(req.body.passage).trim() : '';
+      if (pasted && book_id) {
+        try {
+          await sb('mini_books?id=eq.' + encodeURIComponent(book_id), { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ passage: pasted }) });
+        } catch (e) { /* 지문 저장 실패해도 워크시트 생성은 계속 */ }
+      }
       const n = Math.min(Math.max(parseInt(count) || 8, 1), 20);
       const st = (stage === '기초' || stage === '심화') ? stage : '중급';
       const arNum = parseFloat((String(level).match(/(\d+(\.\d+)?)/) || [])[1]);
