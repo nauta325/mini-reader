@@ -1,0 +1,30 @@
+# main에 push되면 Vercel로 자동 배포 (봇/누가 올리든 항상 배포되게)
+# 준비: Vercel에서 Deploy Hook을 만들고, 그 URL을 GitHub 저장소 Secret 'VERCEL_DEPLOY_HOOK' 에 넣으세요.
+#   Vercel → 프로젝트 → Settings → Git → Deploy Hooks → 이름 deploy / 브랜치 main → Create → URL 복사
+#   GitHub → 저장소 → Settings → Secrets and variables → Actions → New repository secret
+#     Name: VERCEL_DEPLOY_HOOK   Value: (복사한 URL)
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # 수동 실행 버튼도 제공
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Deploy Hook
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "⚠️ VERCEL_DEPLOY_HOOK secret이 없습니다."
+            echo "Vercel에서 Deploy Hook을 만들어 저장소 Secret에 'VERCEL_DEPLOY_HOOK'으로 넣으세요."
+            echo "(설정 전까지는 이 단계가 그냥 넘어갑니다 — 배포는 Vercel에서 수동 Redeploy로 하세요.)"
+            exit 0
+          fi
+          echo "Vercel 배포를 트리거합니다..."
+          curl -sS -X POST "$HOOK"
+          echo ""
+          echo "✅ 배포 트리거 완료 — Vercel Deployments에서 진행 상황을 확인하세요."
