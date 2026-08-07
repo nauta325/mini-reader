@@ -419,16 +419,32 @@ module.exports = async function handler(req, res) {
             quizzes, audio,
           });
         }
-        out.push({ student: s.name, cls: s.note || '', books: rows });
+        // 월별 추이 — 원서 퀴즈(1·2)의 모든 시도를 달(YYYY-MM)별로 집계
+        const mAcc = {};
+        (results || []).forEach((r) => {
+          if (r.student !== s.name) return;
+          const t = r.quiz_type == null ? 1 : r.quiz_type;
+          if (t !== 1 && t !== 2) return;      // 단어(0) 제외, 원서 퀴즈만
+          if (!r.total) return;
+          const m = (r.created_at || '').slice(0, 7);   // YYYY-MM
+          if (!m) return;
+          const p = Math.round(r.score / r.total * 100);
+          const e = mAcc[m] || (mAcc[m] = { count: 0, sum: 0 });
+          e.count++; e.sum += p;
+        });
+        const monthly = Object.keys(mAcc).sort().map((m) => ({
+          month: m, count: mAcc[m].count, avg: Math.round(mAcc[m].sum / mAcc[m].count),
+        }));
+        out.push({ student: s.name, cls: s.note || '', books: rows, monthly });
       }
       return res.json({ ok: true, students: out });
     }
 
     // ── 책 목록 (학생 화면) ──
     if (req.method === 'GET' && action === 'books') {
-      const rows = await sb('mini_books?select=id,title,level,chapter&order=title.asc,chapter.asc');
+      const rows = await sb('mini_books?select=id,title,level,series,chapter&order=title.asc,chapter.asc');
       // title=표시용(챕터 포함), rawTitle=원제목 (전체 챕터 배정 그룹용)
-      const books = (rows || []).map((b) => ({ id: b.id, title: dispTitle(b), rawTitle: b.title, chapter: b.chapter, level: b.level }));
+      const books = (rows || []).map((b) => ({ id: b.id, title: dispTitle(b), rawTitle: b.title, chapter: b.chapter, level: b.level, series: b.series || '' }));
       return res.json({ ok: true, books });
     }
 

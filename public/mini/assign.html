@@ -7,6 +7,21 @@
 <link rel="manifest" href="/mini/manifest.json">
 <meta name="theme-color" content="#5b6ee0">
 <link rel="stylesheet" href="/mini/mini.css">
+<style>
+  .tr-bars { display:flex; align-items:flex-end; gap:8px; height:150px; overflow-x:auto; padding-bottom:2px; }
+  .tr-col { flex:1; min-width:34px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .tr-avg { font-size:11px; color:#8a90a6; margin-bottom:2px; }
+  .tr-bar { width:60%; max-width:32px; min-height:4px; background:linear-gradient(180deg,#7b8bf0,#5b6ee0); border-radius:6px 6px 0 0; position:relative; }
+  .tr-cnt { position:absolute; top:-16px; left:0; right:0; text-align:center; font-size:12px; font-weight:700; color:var(--brand,#5b6ee0); }
+  .tr-lbl { font-size:11px; color:#8a90a6; margin-top:5px; white-space:nowrap; }
+  .stu-table { width:100%; border-collapse:collapse; }
+  .stu-table th { font-size:12px; color:#8a90a6; text-align:center; padding:6px 8px; border-bottom:2px solid var(--line,#e7e9f2); }
+  .stu-table td { padding:8px; border-bottom:1px solid var(--line,#eef0f6); font-size:14px; }
+  .stu-table tr:hover td { background:#fafbff; }
+  .asg-ctrls { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .asg-ctrls .asg-sel { flex:0 1 auto; min-width:110px; margin:0; padding:6px 8px; font-size:13px; }
+  .asg-ctrls .asg-srch { flex:1; min-width:120px; margin:0; padding:6px 10px; font-size:13px; }
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -110,19 +125,46 @@ function selectAsgStudent(name) {
     renderAsgDetail();
   }).catch(function (e) { document.getElementById('asgDetail').innerHTML = '오류: ' + e.message; });
 }
-function setAsgFilter(f) { asgFilter = f; renderAsgDetail(); }
+var asgLevel = '', asgSeries = '', asgQuery = '';
+function setAsgFilter(f) { asgFilter = f; renderAsgBooks(); }
+function onAsgLevel(v) { asgLevel = v; renderAsgBooks(); }
+function onAsgSeries(v) { asgSeries = v; renderAsgBooks(); }
+function onAsgQuery(v) { asgQuery = v; renderAsgBooks(); }
+function uniq(arr) { var seen = {}, out = []; arr.forEach(function (x) { if (x && !seen[x]) { seen[x] = 1; out.push(x); } }); return out; }
 function renderAsgDetail() {
   if (!asgSel) return;
+  var levels = uniq(BOOKS.map(function (b) { return b.level; })).sort();
+  var seriesList = uniq(BOOKS.map(function (b) { return b.series; })).sort();
+  var levelSel = '<select class="asg-sel" onchange="onAsgLevel(this.value)"><option value="">전체 단계</option>'
+    + levels.map(function (l) { return '<option value="' + esc(l) + '"' + (asgLevel === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') + '</select>';
+  var seriesSel = seriesList.length ? '<select class="asg-sel" onchange="onAsgSeries(this.value)"><option value="">전체 시리즈</option>'
+    + seriesList.map(function (l) { return '<option value="' + esc(l) + '"' + (asgSeries === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') + '</select>' : '';
+  var head = '<div class="asg-dhead"><div class="asg-dname">' + esc(asgSel) + ' <span class="muted" style="font-weight:400;font-size:13px">— 책 배정</span></div>'
+    + '<div class="asg-sum muted" id="asgSum"></div></div>'
+    + '<div class="asg-ctrls">' + levelSel + seriesSel
+    + '<input class="asg-srch" id="asgBookSearch" placeholder="🔍 책 제목 검색" value="' + esc(asgQuery) + '" oninput="onAsgQuery(this.value)"></div>'
+    + '<div class="asg-filters">'
+    + '<button class="asg-fbtn' + (asgFilter === 'all' ? ' on' : '') + '" onclick="setAsgFilter(\'all\')">전체</button>'
+    + '<button class="asg-fbtn' + (asgFilter === 'unassigned' ? ' on' : '') + '" onclick="setAsgFilter(\'unassigned\')">미배정</button>'
+    + '<button class="asg-fbtn' + (asgFilter === 'assigned' ? ' on' : '') + '" onclick="setAsgFilter(\'assigned\')">배정됨</button>'
+    + '<button class="asg-fbtn' + (asgFilter === 'read' ? ' on' : '') + '" onclick="setAsgFilter(\'read\')">읽음</button></div>';
+  document.getElementById('asgDetail').innerHTML = head + '<div class="asg-books" id="asgBooks"></div>';
+  renderAsgBooks();
+}
+function renderAsgBooks() {
+  var box = document.getElementById('asgBooks'); if (!box) return;
   var assigned = 0, read = 0;
   BOOKS.forEach(function (b) { var s = asgStatus[b.id]; if (s) { assigned++; if (s.read) read++; } });
-  var fbtn = function (f, label) { return '<button class="asg-fbtn' + (asgFilter === f ? ' on' : '') + '" onclick="setAsgFilter(\'' + f + '\')">' + label + '</button>'; };
-  var head = '<div class="asg-dhead"><div class="asg-dname">' + esc(asgSel) + ' <span class="muted" style="font-weight:400;font-size:13px">— 책 배정</span></div>'
-    + '<div class="asg-sum muted">총 ' + BOOKS.length + ' · 배정 ' + assigned + ' · 읽음 ' + read + '</div></div>'
-    + '<div class="asg-filters">' + fbtn('all', '전체') + fbtn('unassigned', '미배정') + fbtn('assigned', '배정됨') + '</div>';
+  var sum = document.getElementById('asgSum'); if (sum) sum.textContent = '총 ' + BOOKS.length + ' · 배정 ' + assigned + ' · 읽음 ' + read;
+  var q = (asgQuery || '').trim().toLowerCase();
   var rows = BOOKS.filter(function (b) {
     var s = asgStatus[b.id];
-    if (asgFilter === 'assigned') return !!s;
-    if (asgFilter === 'unassigned') return !s;
+    if (asgFilter === 'assigned' && !s) return false;
+    if (asgFilter === 'unassigned' && s) return false;
+    if (asgFilter === 'read' && !(s && s.read)) return false;
+    if (asgLevel && b.level !== asgLevel) return false;
+    if (asgSeries && b.series !== asgSeries) return false;
+    if (q && (b.title || '').toLowerCase().indexOf(q) < 0) return false;
     return true;
   }).map(function (b) {
     var s = asgStatus[b.id], badge, btn;
@@ -132,7 +174,7 @@ function renderAsgDetail() {
     return '<div class="asg-book"><div class="asg-bt">' + esc(b.title) + (b.level ? '<span class="muted" style="font-size:11px"> · ' + esc(b.level) + '</span>' : '') + '</div>'
       + '<div class="asg-br">' + badge + btn + '</div></div>';
   }).join('') || '<div class="muted" style="padding:16px">해당하는 책이 없어요</div>';
-  document.getElementById('asgDetail').innerHTML = head + '<div class="asg-books">' + rows + '</div>';
+  box.innerHTML = rows;
 }
 function asgAssign(bookId) {
   fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign', student: asgSel, book: bookId }) })
@@ -204,6 +246,10 @@ function loadOverview() {
     dash += '<div class="card"><div style="font-weight:700;font-size:14px;margin-bottom:4px">점수 분포</div><div class="bars">'
       + buckets.map(function (v, i) { return '<div class="bar-col"><div class="bv">' + v + '</div><div class="bar' + (v ? '' : ' empty') + '" style="height:' + Math.round(v / maxB * 90) + '%"></div><div class="bl">' + labels[i] + '</div></div>'; }).join('')
       + '</div></div>';
+    // ── 월별 추이 (전체 학생 푼 퀴즈 수 · 평균 점수) ──
+    dash += trendHtml(d.students, PASS);
+    // ── 학생별 현황 표 (이름·평균점수·통과율·읽은권수·레벨·푼퀴즈) ──
+    dash += studentTable(d.students, PASS);
     // ── 학생별 상세 카드 ──
     var qc = function (x) { return x ? '<span class="pill ' + (x.percent >= PASS ? 'p-good' : 'p-bad') + '">' + x.percent + '%</span>' : '<span class="muted">–</span>'; };
     var detail = d.students.map(function (s) {
@@ -226,6 +272,67 @@ function loadOverview() {
     }).join('');
     document.getElementById('overview').innerHTML = dash + '<h2 style="margin-top:20px">👧 학생별 상세</h2>' + detail;
   }).catch(function (e) { document.getElementById('overview').textContent = '오류: ' + e.message; });
+}
+
+// ── 한 학생의 집계 (평균점수·통과율·읽은권수·푼퀴즈·레벨) ──
+function statOf(s, PASS) {
+  var sum = 0, cnt = 0, pass = 0, read = 0, lv = {};
+  (s.books || []).forEach(function (b) {
+    var q = b.quizzes || {};
+    if (q[2] && q[2].percent >= PASS) read++;   // 완독 = 원서퀴즈2 통과
+    [1, 2].forEach(function (t) {
+      if (q[t]) { sum += q[t].percent; cnt++; if (q[t].percent >= PASS) pass++; }
+    });
+    if (b.level && q[2] && q[2].percent >= PASS) lv[b.level] = (lv[b.level] || 0) + 1;
+  });
+  // 레벨 = 완독한 책들 중 가장 많은 레벨 (없으면 배정된 책 레벨 중 최빈값)
+  if (!Object.keys(lv).length) (s.books || []).forEach(function (b) { if (b.level) lv[b.level] = (lv[b.level] || 0) + 1; });
+  var level = '';
+  Object.keys(lv).forEach(function (k) { if (!level || lv[k] > lv[level]) level = k; });
+  return { avg: cnt ? Math.round(sum / cnt) : null, passRate: cnt ? Math.round(pass / cnt * 100) : null, read: read, quiz: cnt, level: level };
+}
+
+// ── 월별 추이 그래프 (전체 학생 합산) ──
+function trendHtml(students, PASS) {
+  var acc = {};
+  students.forEach(function (s) {
+    (s.monthly || []).forEach(function (m) {
+      var e = acc[m.month] || (acc[m.month] = { count: 0, sum: 0 });
+      e.count += m.count; e.sum += m.avg * m.count;   // 가중평균용
+    });
+  });
+  var months = Object.keys(acc).sort();
+  if (!months.length) return '';
+  var maxC = 1;
+  months.forEach(function (m) { if (acc[m].count > maxC) maxC = acc[m].count; });
+  var cols = months.map(function (m) {
+    var e = acc[m], h = Math.round(e.count / maxC * 92), avg = Math.round(e.sum / e.count);
+    return '<div class="tr-col"><div class="tr-avg">' + avg + '%</div>'
+      + '<div class="tr-bar" style="height:' + h + '%"><span class="tr-cnt">' + e.count + '</span></div>'
+      + '<div class="tr-lbl">' + esc(m.slice(5) + '월') + '</div></div>';
+  }).join('');
+  return '<div class="card"><div style="font-weight:700;font-size:14px;margin-bottom:8px">📈 월별 추이 '
+    + '<span class="muted" style="font-weight:400;font-size:12px">— 막대=푼 퀴즈 수, 위=평균 점수</span></div>'
+    + '<div class="tr-bars">' + cols + '</div></div>';
+}
+
+// ── 학생별 현황 표 ──
+function studentTable(students, PASS) {
+  var rows = students.map(function (s) {
+    var st = statOf(s, PASS);
+    var pr = st.passRate == null ? '–' : '<span class="pill ' + (st.passRate >= PASS ? 'p-good' : 'p-bad') + '">' + st.passRate + '%</span>';
+    return '<tr>'
+      + '<td><a href="/mini/report.html?student=' + encodeURIComponent(s.student) + '" target="_blank" style="color:var(--brand);text-decoration:none;font-weight:600">' + esc(s.student) + '</a>'
+      + (s.cls ? '<div class="muted" style="font-size:11px">' + esc(s.cls) + '</div>' : '') + '</td>'
+      + '<td style="text-align:center">' + (st.avg == null ? '–' : st.avg) + '</td>'
+      + '<td style="text-align:center">' + pr + '</td>'
+      + '<td style="text-align:center">' + st.read + '</td>'
+      + '<td style="text-align:center">' + (st.level ? esc(st.level) : '–') + '</td>'
+      + '<td style="text-align:center">' + st.quiz + '</td></tr>';
+  }).join('');
+  return '<div class="card" style="overflow-x:auto"><div style="font-weight:700;font-size:14px;margin-bottom:8px">👧 학생별 현황</div>'
+    + '<table class="stu-table"><tr><th>이름</th><th>평균점수</th><th>통과율</th><th>읽은권수</th><th>레벨</th><th>푼퀴즈</th></tr>'
+    + rows + '</table></div>';
 }
 
 function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }

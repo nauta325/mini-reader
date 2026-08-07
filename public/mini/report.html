@@ -6,6 +6,16 @@
 <title>학습 리포트</title>
 <meta name="theme-color" content="#5b6ee0">
 <link rel="stylesheet" href="/mini/mini.css">
+<style>
+  .trend { border:1px solid var(--line); border-radius:12px; padding:14px 12px 10px; margin-top:8px; }
+  .tr-bars { display:flex; align-items:flex-end; gap:10px; height:150px; overflow-x:auto; padding-bottom:2px; }
+  .tr-col { flex:1; min-width:38px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .tr-avg { font-size:11px; color:var(--muted,#8a90a6); margin-bottom:2px; }
+  .tr-bar { width:60%; max-width:34px; min-height:4px; background:linear-gradient(180deg,#7b8bf0,#5b6ee0); border-radius:6px 6px 0 0; position:relative; }
+  .tr-cnt { position:absolute; top:-16px; left:0; right:0; text-align:center; font-size:12px; font-weight:700; color:var(--brand,#5b6ee0); }
+  .tr-lbl { font-size:11px; color:var(--muted,#8a90a6); margin-top:5px; white-space:nowrap; }
+  @media print { .tr-bar { background:#5b6ee0 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+</style>
 </head>
 <body>
 <div class="wrap mid">
@@ -52,6 +62,8 @@ function render(s) {
   var avg = totalQ ? Math.round((q1sum + q2sum) / totalQ) : null;
   var passRate = totalQ ? Math.round(passCount / totalQ * 100) : null;
 
+  var trend = trendHtml(s.monthly || []);
+
   var rows = books.map(function (b) {
     var q = b.quizzes || {};
     var word = q[0] ? '<span class="pill p-good">완료</span>' : '<span class="muted">–</span>';
@@ -75,9 +87,28 @@ function render(s) {
     + '<div class="stat"><div class="n">' + (avg != null ? avg + '%' : '–') + '</div><div class="l">평균 점수</div></div>'
     + '<div class="stat"><div class="n" style="color:var(--brand)">' + (passRate != null ? passRate + '%' : '–') + '</div><div class="l">통과율</div></div>'
     + '</div>'
+    + trend
     + '<h2 style="margin-top:18px">📖 책별 결과</h2>'
     + '<table><tr><th>책</th><th style="text-align:center">단어</th><th style="text-align:center">퀴즈1</th><th style="text-align:center">퀴즈2</th><th style="text-align:center">녹음</th></tr>' + rows + '</table>'
     + '<div class="muted" style="margin-top:14px">🎉 = 원서퀴즈2까지 통과한 완독 · 통과 기준 ' + PASS + '점</div>';
+}
+
+// ── 월별 추이 그래프 (푼 퀴즈 수 막대 + 평균 점수 라벨) ──
+function trendHtml(monthly) {
+  if (!monthly || !monthly.length) return '';
+  var maxC = 1;
+  monthly.forEach(function (m) { if (m.count > maxC) maxC = m.count; });
+  var cols = monthly.map(function (m) {
+    var h = Math.round(m.count / maxC * 92);
+    var mm = m.month.slice(5) + '월';   // 'YYYY-MM' → 'MM월'
+    return '<div class="tr-col">'
+      + '<div class="tr-avg">' + m.avg + '%</div>'
+      + '<div class="tr-bar" style="height:' + h + '%"><span class="tr-cnt">' + m.count + '</span></div>'
+      + '<div class="tr-lbl">' + esc(mm) + '</div></div>';
+  }).join('');
+  return '<h2 style="margin-top:18px">📈 월별 추이</h2>'
+    + '<div class="trend"><div class="tr-bars">' + cols + '</div>'
+    + '<div class="muted" style="font-size:12px;margin-top:6px">막대 = 푼 퀴즈 수 · 위 숫자 = 그 달 평균 점수</div></div>';
 }
 
 function todayStr() {
