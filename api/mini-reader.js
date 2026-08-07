@@ -15,6 +15,7 @@
 //
 // 액션 그룹:
 //   설정      settings · set-settings · rename-series
+//   관리자    admin-login(비번확인) · admin-set-pass(비번설정/변경) — 비번은 mini_settings.admin_pass 에 저장, 클라이언트로 절대 안 보냄
 //   반        classes · add-class · update-class · delete-class
 //   학생      students · add-student · bulk-students · notion-import(노션DB) · update-student · delete-student · student-login
 //   배정      assign(wholeTitle=전체챕터) · unassign · assignments
@@ -153,7 +154,7 @@ module.exports = async function handler(req, res) {
     // ── 앱 설정 조회 / 저장 (key/value) ──
     if (req.method === 'GET' && action === 'settings') {
       const rows = await sb('mini_settings?select=key,value');
-      const map = {}; (rows || []).forEach((r) => { map[r.key] = r.value; });
+      const map = {}; (rows || []).forEach((r) => { if (r.key !== 'admin_pass') map[r.key] = r.value; });  // 관리자 비번은 절대 내보내지 않음
       return res.json({ ok: true, settings: map });
     }
     if (req.method === 'POST' && action === 'set-settings') {
@@ -162,6 +163,30 @@ module.exports = async function handler(req, res) {
       await sb('mini_settings?on_conflict=key', {
         method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify({ key, value: String(value == null ? '' : value) }),
+      });
+      return res.json({ ok: true });
+    }
+
+    // ── 관리자 비밀번호 확인 (학생이 선생님 화면 못 보게) ──
+    //   비번은 mini_settings.admin_pass 에만 있고, 여기서 맞는지만 확인해 줌 (값은 안 돌려줌)
+    if (req.method === 'POST' && action === 'admin-login') {
+      const rows = await sb('mini_settings?key=eq.admin_pass&select=value');
+      const need = (rows && rows[0] && rows[0].value) || '';
+      if (!need) return res.json({ ok: true, open: true });   // 아직 비번 없음 = 잠금 없음(설정 권장)
+      const got = (req.body && req.body.passcode) || '';
+      if (got === need) return res.json({ ok: true });
+      return res.json({ ok: false, message: '비밀번호가 달라요' });
+    }
+    // ── 관리자 비밀번호 설정/변경 ──
+    if (req.method === 'POST' && action === 'admin-set-pass') {
+      const rows = await sb('mini_settings?key=eq.admin_pass&select=value');
+      const cur = (rows && rows[0] && rows[0].value) || '';
+      const next = (req.body && req.body.passcode) || '';
+      if (!next) return res.status(400).json({ ok: false, message: '새 비밀번호를 입력하세요' });
+      if (cur && (req.body.current || '') !== cur) return res.status(403).json({ ok: false, message: '현재 비밀번호가 달라요' });
+      await sb('mini_settings?on_conflict=key', {
+        method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'admin_pass', value: String(next) }),
       });
       return res.json({ ok: true });
     }
