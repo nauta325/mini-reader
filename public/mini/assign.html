@@ -21,6 +21,11 @@
   .asg-ctrls { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
   .asg-ctrls .asg-sel { flex:0 1 auto; min-width:110px; margin:0; padding:6px 8px; font-size:13px; }
   .asg-ctrls .asg-srch { flex:1; min-width:120px; margin:0; padding:6px 10px; font-size:13px; }
+  .tabs { display:flex; gap:6px; margin:4px 0 16px; border-bottom:2px solid var(--line,#e7e9f2); }
+  .tab { appearance:none; border:none; background:none; cursor:pointer; padding:10px 18px; font-size:15px; font-weight:600;
+         color:#8a90a6; border-bottom:3px solid transparent; margin-bottom:-2px; border-radius:8px 8px 0 0; }
+  .tab:hover { color:var(--brand,#5b6ee0); background:#f6f7fd; }
+  .tab.on { color:var(--brand,#5b6ee0); border-bottom-color:var(--brand,#5b6ee0); }
 </style>
 </head>
 <body>
@@ -29,6 +34,13 @@
     <div class="nav"><a href="/mini/index.html">홈</a><a href="/mini/students.html">← 학생 관리</a><a href="/mini/books.html">원서 관리 →</a></div>
   </div>
 
+  <div class="tabs">
+    <button class="tab on" id="tab-assign" onclick="showTab('assign')">📕 원서 배정</button>
+    <button class="tab" id="tab-dash" onclick="showTab('dash')">📊 결과 대시보드</button>
+  </div>
+
+  <!-- ── 탭 1: 원서 배정 ── -->
+  <div id="panel-assign">
   <h2>📕 원서 배정 <span class="muted" style="font-weight:400">— 학생별 책 배정</span></h2>
   <div class="assign-wrap">
     <div class="assign-side">
@@ -47,10 +59,14 @@
       <button class="primary" onclick="doAssign()" style="white-space:nowrap">＋ 배정</button>
     </div>
   </div>
+  </div><!-- /panel-assign -->
 
+  <!-- ── 탭 2: 결과 대시보드 ── -->
+  <div id="panel-dash" style="display:none">
   <h2>📊 원서 결과 대시보드 <span class="muted" style="font-weight:400">— 배정·결과·녹음 한눈에</span></h2>
   <div style="margin-bottom:12px"><select id="ovClass" onchange="loadOverview()" style="max-width:220px"><option value="">전체 반</option></select></div>
   <div id="overview">불러오는 중...</div>
+  </div><!-- /panel-dash -->
 </div>
 
 <script>
@@ -335,13 +351,25 @@ function studentTable(students, PASS) {
     + rows + '</table></div>';
 }
 
+// ── 탭 전환 (배정 ↔ 대시보드) ──
+function showTab(name) {
+  var isAssign = name === 'assign';
+  document.getElementById('panel-assign').style.display = isAssign ? '' : 'none';
+  document.getElementById('panel-dash').style.display = isAssign ? 'none' : '';
+  document.getElementById('tab-assign').classList.toggle('on', isAssign);
+  document.getElementById('tab-dash').classList.toggle('on', !isAssign);
+  location.hash = name;
+  if (!isAssign) loadOverview();   // 대시보드 열 때 최신 결과로 새로고침
+}
+
 function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
 
 loadStudents();
 fillAssignTargets();
 fillAssignBooks();
 fillOvClass();
-loadOverview();
+// 대시보드는 탭을 열 때(showTab) 불러옵니다 — 처음에 #dash로 들어오면 바로 로드
+if (location.hash === '#dash') showTab('dash');
 </script>
 </body>
 </html>
