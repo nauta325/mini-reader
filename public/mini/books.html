@@ -254,7 +254,11 @@ function aiGenerate() {
       nWords: document.getElementById('nWords').value, nQ1: document.getElementById('nQ1').value, nQ2: document.getElementById('nQ2').value })
   }).then(function (r) { return r.json(); }).then(function (d) {
     if (!d.ok) throw new Error(d.message + (d.raw ? ' / ' + d.raw : ''));
-    document.getElementById('aiMsg').textContent = '✅ 완성! 단어 ' + d.words + ' · 원서퀴즈1 ' + d.q1 + ' · 원서퀴즈2 ' + d.q2 + ' 생성·저장됨.';
+    var msgEl = document.getElementById('aiMsg');
+    msgEl.textContent = '✅ 완성! 단어 ' + d.words + ' · 원서퀴즈1 ' + d.q1 + ' · 원서퀴즈2 ' + d.q2 + ' 생성·저장됨.';
+    if (d.q1 === 0 || d.q2 === 0) {   // 지문이 너무 짧아 퀴즈가 비면 경고
+      msgEl.innerHTML = msgEl.textContent + '<br><b style="color:#e0553e">⚠️ 원서퀴즈' + (d.q1 === 0 ? '1' : '') + (d.q1 === 0 && d.q2 === 0 ? '·' : '') + (d.q2 === 0 ? '2' : '') + '가 0개예요. 지문(원서 본문)이 너무 짧으면 그럴 수 있어요 — 더 긴 지문으로 다시 생성해 보세요.</b>';
+    }
     var ch = document.getElementById('aiChapter').value;
     document.getElementById('aiText').value = ''; document.getElementById('aiVideo').value = '';
     if (ch) {
