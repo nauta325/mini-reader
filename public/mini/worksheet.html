@@ -28,6 +28,8 @@
 
   /* ── 워크시트(인쇄물) — 저학년용 아기자기 스타일 ── */
   #sheet { font-family:'Fredoka','Jua','Noto Sans KR',system-ui,sans-serif; color:#3a3f52; }
+  /* 인쇄·PDF에서도 색이 나오게 (브라우저 기본은 배경색을 안 찍음) */
+  #sheet, #sheet * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .ws-head { display:flex; justify-content:space-between; align-items:center; gap:12px;
     background:linear-gradient(135deg,#eef1ff,#f6f0ff); border-radius:18px; padding:14px 18px; margin-bottom:18px; }
   .ws-title { font-size:22px; font-weight:700; color:var(--brand); line-height:1.25; }
@@ -54,6 +56,28 @@
   .key { background:#fff7ec; border:2px dashed #f0c987; border-radius:16px; padding:14px 16px;
     margin-top:20px; font-size:13px; color:#8a6a2f; line-height:1.7; break-inside:avoid; page-break-inside:avoid; }
 
+  /* ── 종류별 색 (리딩=파랑·라이팅=초록·단어=주황) ── */
+  .sheet-writing .ws-head { background:linear-gradient(135deg,#eafaf1,#f0fff7); }
+  .sheet-writing .ws-title { color:#1f9d67; }
+  .sheet-writing .ws-q .n { background:linear-gradient(135deg,#34c07a,#1f9d67); }
+  .sheet-writing .ws-sec { background:#e6f6ee; color:#1f7a54; }
+  .sheet-writing .bank { border-color:#7fce9f; background:#f2fbf6; color:#1f7a54; }
+  .sheet-vocab .ws-head { background:linear-gradient(135deg,#fff4e8,#fff8f0); }
+  .sheet-vocab .ws-title { color:#d1791b; }
+  .sheet-vocab .ws-q .n { background:linear-gradient(135deg,#ff9f45,#f37c1e); }
+  .sheet-vocab .ws-sec { background:#fdeede; color:#b56a1e; }
+  .sheet-vocab .bank { border-color:#f0b877; background:#fff8ef; color:#b56a1e; }
+
+  /* ── 🖤 흑백 모드 (흑백 프린터·잉크 절약) — 색 배경을 테두리로 ── */
+  body.bw .ws-head { background:#fff !important; border:2px solid #555; }
+  body.bw .ws-title { color:#222 !important; }
+  body.bw .ws-sec { background:#fff !important; color:#222 !important; border:1.6px solid #555; }
+  body.bw .ws-q .n { background:#333 !important; color:#fff; }
+  body.bw .bank { background:#fff !important; border-color:#666 !important; color:#222 !important; }
+  body.bw .wtable td { border-color:#666 !important; }
+  body.bw .ws-meta { border-color:#666 !important; color:#333 !important; }
+  body.bw .key { background:#fff !important; border-color:#888 !important; color:#333 !important; }
+
   /* ── 인쇄 정렬 (A4 여백 · 문항이 페이지 경계에서 안 잘리게) ── */
   @page { size:A4; margin:14mm 14mm 16mm; }
   @media print {
@@ -72,7 +96,8 @@
 <div class="wrap mid">
   <div class="btns noprint topbar">
     <a class="btn ghost" href="/mini/books.html">← 원서 관리</a>
-    <button class="primary" onclick="window.print()" style="margin-left:auto">🖨 인쇄 / PDF</button>
+    <button class="btn ghost" id="bwBtn" onclick="toggleBW()" style="margin-left:auto">🖤 흑백으로</button>
+    <button class="primary" onclick="window.print()">🖨 인쇄 / PDF</button>
   </div>
 
   <div class="card builder noprint">
@@ -265,9 +290,21 @@ function renderSheet(w) {
 
   if (keys.length) html += '<div class="key' + (withAns ? '' : ' hide') + '">' + keys.join('<hr style="border:0;border-top:1px solid #e2e5f0">') + '</div>';
   var el = document.getElementById('sheet');
+  el.className = 'card sheet-' + (w.type || 'reading');   // 종류별 색(리딩·라이팅·단어)
   el.innerHTML = html; el.style.display = 'block';
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+// 🎨 컬러 ↔ 🖤 흑백 전환 (선택 저장)
+function toggleBW() {
+  var on = document.body.classList.toggle('bw');
+  document.getElementById('bwBtn').textContent = on ? '🎨 컬러로' : '🖤 흑백으로';
+  try { localStorage.setItem('ws_bw', on ? '1' : '0'); } catch (e) {}
+}
+(function () {
+  var on = false; try { on = localStorage.getItem('ws_bw') === '1'; } catch (e) {}
+  if (on) { document.body.classList.add('bw'); var b = document.getElementById('bwBtn'); if (b) b.textContent = '🎨 컬러로'; }
+})();
 
 function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
 syncControls();
