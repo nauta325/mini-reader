@@ -39,7 +39,9 @@
   .ws-sec { display:inline-block; font-weight:700; font-size:15px; margin:22px 0 10px; color:#5a4bb0;
     background:#efeaff; border-radius:999px; padding:5px 15px; }
   .ws-q { position:relative; margin:15px 0; padding-left:38px; line-height:1.6; font-size:15px;
-    break-inside:avoid; page-break-inside:avoid; }
+    break-inside:avoid; page-break-inside:avoid;
+    /* 지문 속 긴 밑줄(_____)이 카드 밖으로 삐져나가지 않게 줄바꿈 */
+    overflow-wrap:anywhere; word-break:break-word; }
   .ws-q .n { position:absolute; left:0; top:0; min-width:26px; height:26px; padding:0 6px; box-sizing:border-box;
     border-radius:9px; background:linear-gradient(135deg,var(--brand),var(--brand-2)); color:#fff;
     font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; margin:0; }
@@ -48,7 +50,7 @@
     font-weight:600; background:#faf8ff; color:#5a4bb0; letter-spacing:.2px; }
   .wtable { width:100%; border-collapse:separate; border-spacing:0 6px; }
   .wtable td { border:2px solid #e6e9f8; padding:11px 12px; font-size:15px; background:#fff; }
-  .wtable td.en { width:42%; font-weight:600; color:#454b60; border-radius:12px 0 0 12px; }
+  .wtable td.en { width:42%; font-weight:600; color:#454b60; border-radius:12px 0 0 12px; overflow-wrap:anywhere; word-break:break-word; }
   .wtable td:last-child { border-radius:0 12px 12px 0; }
   .mtable { width:100%; border-collapse:collapse; }
   .mtable td { padding:9px 6px; font-size:15px; border:0; }
