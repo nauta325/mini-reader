@@ -13,6 +13,11 @@
   /* 학생 화면 전용: 큰 버튼은 꽉 차게, 제목 가운데 */
   h1 { text-align: center; font-size: 24px; margin: 6px 0 16px; }
   .primary { width: 100%; }
+  /* 책 목록: 제목만 보이는 클릭 카드 (누르면 단어·녹음·퀴즈 메뉴) */
+  .bk.click { cursor: pointer; transition: transform .12s ease, box-shadow .18s ease; }
+  .bk.click:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(91,110,224,.18); }
+  .bk-status { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .bk-go { color: var(--brand); font-size: 26px; font-weight: 700; line-height: 1; margin-left: 2px; }
 </style>
 </head>
 <body>
@@ -84,26 +89,17 @@ function loadBooks() {
   document.getElementById('bookList').innerHTML = '<div class="muted" style="text-align:center">불러오는 중...</div>';
   fetch(API + '/api/mini-reader?action=assignments&student=' + encodeURIComponent(studentName)).then(function (r) { return r.json(); }).then(function (d) {
     if (!d.ok) throw new Error(d.message);
+    // 첫 화면은 '책 제목'만 (누르면 단어·녹음·퀴즈 메뉴가 나와요)
     var cards = d.books.map(function (b, i) {
       var s = b.status || {};
-      var pass1 = s[1] && s[1].percent >= PASS, pass2 = s[2] && s[2].percent >= PASS;
-      var allDone = !!pass2;
-      var cur = !s[0] ? 0 : (!pass1 ? 1 : (!pass2 ? 2 : -1));   // 첫 미완료 단계 = 지금 하기
-      function st(idx, icon, title) {
-        var c = '', r = '하기', ic = icon;
-        if (idx === 0) { if (s[0]) { c = 'done'; r = '완료'; ic = '✓'; } }
-        else { var rr = s[idx]; if (rr) { c = rr.percent >= PASS ? 'done' : ''; r = rr.percent + '%'; if (c === 'done') ic = '✓'; } }
-        if (!c && idx === cur) { c = 'now'; r = '지금 하기'; }
-        return '<button class="step ' + c + '" onclick="openBook(' + b.id + ')">'
-          + '<div class="s-ic">' + ic + '</div>'
-          + '<div class="s-b"><div class="s-t">' + title + '</div></div>'
-          + '<div class="s-r">' + r + '</div></button>';
-      }
-      return '<div class="bk"><div class="bk-head">'
+      var allDone = !!(s[2] && s[2].percent >= PASS);
+      var started = !!(s[0] || s[1] || s[2]);
+      var status = allDone ? '완독 🎉' : (started ? '진행 중' : '시작 전');
+      return '<div class="bk click" onclick="openBook(' + b.id + ')"><div class="bk-head">'
         + '<div class="bk-no' + (allDone ? ' done' : '') + '">' + (allDone ? '✓' : (i + 1)) + '</div>'
-        + '<div><div class="bk-t">' + esc(b.title) + (allDone ? ' 🎉' : '') + '</div>'
-        + '<div class="bk-l">' + esc(b.level || '') + '</div></div></div>'
-        + '<div class="bk-steps">' + st(0, '🃏', '단어 학습') + st(1, '📝', '원서퀴즈 1') + st(2, '📖', '원서퀴즈 2') + '</div></div>';
+        + '<div style="flex:1;min-width:0"><div class="bk-t">' + esc(b.title) + '</div>'
+        + '<div class="bk-l">' + esc(b.level || '') + '</div></div>'
+        + '<div class="bk-status">' + status + '</div><div class="bk-go">›</div></div></div>';
     }).join('');
     document.getElementById('bookList').innerHTML = '<h2 style="margin:2px 2px 12px">📚 ' + esc(studentName) + ' 님의 원서</h2>'
       + (cards || '<div class="card muted" style="text-align:center">배정된 책이 없어요.<br>선생님이 책을 배정해 주세요.</div>');
