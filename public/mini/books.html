@@ -427,10 +427,13 @@ function findYt(titleId, chapterId) {
 // 도메인은 현재 origin으로 자동 설정돼서 배포 주소가 바뀌어도 그대로 동작.
 function buildBookmarklet() {
   var target = location.origin + '/mini/books.html';
-  var code = "(function(){try{var n=document.querySelectorAll('transcript-segment-view-model');"
-    + "if(!n.length){alert('스크립트 패널을 먼저 열어주세요 (더보기 → 스크립트 표시)');return;}"
-    + "var a=[];for(var i=0;i<n.length;i++){var el=n[i].querySelector('[role=text]')||n[i].querySelector('.ytAttributedStringHost');"
-    + "var t=el?(el.textContent||'').trim():'';if(t&&!/^\\[.*\\]$/.test(t))a.push(t);}"
+  var code = "(function(){try{"
+    + "var a=[];"
+    + "var els=document.querySelectorAll('.segment-text');"                                   // 현재 유튜브 자막 텍스트
+    + "for(var i=0;i<els.length;i++){var t=(els[i].textContent||'').trim();if(t&&!/^\\[.*\\]$/.test(t))a.push(t);}"
+    + "if(!a.length){var segs=document.querySelectorAll('ytd-transcript-segment-renderer,transcript-segment-view-model');"  // 다른 구조 대비
+    + "for(var j=0;j<segs.length;j++){var raw=(segs[j].textContent||'').replace(/^\\s*\\d+:\\d+\\s*/,'').trim();if(raw&&!/^\\[.*\\]$/.test(raw))a.push(raw);}}"
+    + "if(!a.length){alert('스크립트를 못 읽었어요. 더보기 → 스크립트 표시 로 패널을 연 뒤 다시 눌러주세요.');return;}"
     + "var s=a.join(' ').replace(/\\s+/g,' ').trim();if(!s){alert('스크립트가 비어 있어요.');return;}"
     + "var title=document.title.replace(' - YouTube','');"
     + "window.open('" + target + "#yt='+encodeURIComponent(JSON.stringify({title:title,text:s,video:location.href.split('&')[0]})),'_blank');"

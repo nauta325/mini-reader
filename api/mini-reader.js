@@ -662,22 +662,37 @@ module.exports = async function handler(req, res) {
         + '- 설명·코드펜스 없이 JSON 객체만 출력.\n'
         + '- 형식: {"words":[...],"quiz1":[...],"quiz2":[...]}\n\n지문:\n' + text;
 
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'x-api-key': AI_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', // 더 똑똑하게: 'claude-sonnet-5'
-          max_tokens: 4000,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
-      if (!r.ok) return res.status(500).json({ ok: false, message: 'Claude ' + r.status + ': ' + (await r.text()).slice(0, 150) });
-      const data = await r.json();
-      const out = (data.content && data.content[0] && data.content[0].text) || '';
+      async function askAI(pr) {
+        const rr = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'x-api-key': AI_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001', // 더 똑똑하게: 'claude-sonnet-5'
+            max_tokens: 4000,
+            messages: [{ role: 'user', content: pr }],
+          }),
+        });
+        if (!rr.ok) throw new Error('Claude ' + rr.status + ': ' + (await rr.text()).slice(0, 150));
+        const dd = await rr.json();
+        const oo = (dd.content && dd.content[0] && dd.content[0].text) || '';
+        try { return JSON.parse(oo.slice(oo.indexOf('{'), oo.lastIndexOf('}') + 1)); }
+        catch (e) { throw new Error('AI 응답을 못 읽었어요: ' + oo.slice(0, 120)); }
+      }
+
       let gen;
-      try { gen = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1)); }
-      catch (e) { return res.status(500).json({ ok: false, message: 'AI 응답을 못 읽었어요', raw: out.slice(0, 200) }); }
-      const words = gen.words || [], q1 = gen.quiz1 || [], q2 = gen.quiz2 || [];
+      try { gen = await askAI(prompt); }
+      catch (e) { return res.status(500).json({ ok: false, message: e.message }); }
+      let words = gen.words || [], q1 = gen.quiz1 || [], q2 = gen.quiz2 || [];
+
+      // 안전장치: 지문이 충분한데 퀴즈가 비면 한 번 더 강하게 재시도
+      if ((q1.length === 0 || q2.length === 0) && (text || '').length > 150) {
+        try {
+          const g2 = await askAI(prompt + '\n\n(중요) 방금 quiz1 또는 quiz2가 비어 있었다. 이번엔 quiz1은 ' + n1 + '개, quiz2는 ' + n2 + '개를 반드시 채워라. 지문 속 단어·표현·제목·기본 사실로라도 만들어라.');
+          if (q1.length === 0 && (g2.quiz1 || []).length) q1 = g2.quiz1;
+          if (q2.length === 0 && (g2.quiz2 || []).length) q2 = g2.quiz2;
+          if (!words.length && (g2.words || []).length) words = g2.words;
+        } catch (e) { /* 재시도 실패해도 원본 결과로 진행 */ }
+      }
 
       await sb('mini_books', {
         method: 'POST', headers: { Prefer: 'return=minimal' },
