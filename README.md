@@ -20,8 +20,8 @@
 ## 🚀 세팅 (브라우저만, 터미널 X — 약 10분)
 
 ### 1) 코드 준비 — 내 저장소 만들기
-- 이 페이지 우측 상단 **"Use this template" → "Create a new repository"** → 내 계정에 저장소 생성
-- (Use this template 버튼이 없으면 **Fork** 버튼 사용)
+- 이 페이지 우측 상단 **"Use this template" → "Create a new repository"** → 내 계정에 저장소 생성 (커밋 기록 없는 깨끗한 복사본)
+- (버튼이 안 보이면 GitHub **로그인** 먼저)
 
 ### 2) Supabase (데이터베이스)
 1. [supabase.com](https://supabase.com) → 새 프로젝트 생성
@@ -55,15 +55,19 @@
 | 파일 | 역할 |
 |---|---|
 | `api/mini-reader.js` | API 1개 — 이 파일이 서버 전부 (책·퀴즈·배정·결과·녹음·AI생성·리포트) |
-| `public/mini/index.html` | 홈 (학생/학생관리/원서관리 이동) |
-| `public/mini/reader.html` | **학생**: 배정된 책 → 3종 퀴즈 → 녹음 |
+| `public/mini/index.html` | **학생 홈** (학생 시작하기 + 맨 아래 🔑 선생님용 링크) |
+| `public/mini/reader.html` | **학생**: 배정된 책(제목만) → 단어·녹음·퀴즈 메뉴 (완료 ✓ 표시) |
+| `public/mini/admin.html` | **선생님 홈** (관리자 비밀번호 잠금) — 학생·배정·원서 관리로 이동 |
 | `public/mini/students.html` | **선생님**: 반·학생·배정·현황 |
+| `public/mini/assign.html` | **선생님**: 원서 배정 / 결과 대시보드 (탭) |
 | `public/mini/books.html` | **선생님**: AI 생성·목록·수정·삭제 |
 | `public/mini/report.html` | **부모용** 학습 리포트 (인쇄/PDF) |
 | `public/mini/worksheet.html` | 워크시트 (리딩 이해·라이팅·단어) 출력 |
+| `public/mini/admin-guard.js` | 관리 페이지 보호(비밀번호 없으면 admin.html로) |
 | `sql/mini-setup.sql` | 세팅 SQL (한 번 실행) |
 
-> 앱 주소: 학생 `/mini/`, 선생님 `/mini/students.html`·`/mini/books.html`
+> 앱 주소: 학생 `/mini/`, 선생님 `/mini/admin.html` (여기서 학생·배정·원서 관리로 이동)
+> 🔒 학생 홈에는 관리 메뉴가 안 보이고, 관리 페이지는 **관리자 비밀번호**로 잠글 수 있어요.
 
 ## 🎤 클로드에게 "말해서 바꾸기" 예시
 
