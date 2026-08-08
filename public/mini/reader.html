@@ -137,9 +137,9 @@ function renderMenu() {
   function stepBtn(type, icon, title, desc, onclick) {
     var r = st[type], cls = '', ic = icon, right = '→';
     if (type === 0 && r) { cls = 'done'; ic = '✓'; right = '완료 ✓'; }        // 단어: 하면 완료
-    else if (r) {                                                             // 퀴즈: 통과=완료, 아니면 점수
+    else if (r) {                                                             // 퀴즈: 통과=완료, 아니면 미통과(다시)
       if (r.percent >= PASS) { cls = 'done'; ic = '✓'; right = '완료 ✓'; }
-      else right = r.percent + '%';
+      else { cls = 'fail'; ic = '↻'; right = '미통과 ' + r.percent + '% · 다시 풀기'; }
     }
     return '<button class="step ' + cls + '" onclick="' + onclick + '"><div class="s-ic">' + ic + '</div>'
       + '<div class="s-b"><div class="s-t">' + title + '</div><div class="s-d">' + desc + '</div></div>'
@@ -152,7 +152,9 @@ function renderMenu() {
     steps += '<div id="videoBox" style="display:none;margin:2px 0 6px"></div>';
   }
   if ((CUR.words || []).length) { any = true; steps += stepBtn(0, '🃏', '단어 학습 &amp; 퀴즈', '단어 ' + CUR.words.length + '개', 'startStudy()'); }
-  any = true; steps += '<button class="step" onclick="startRec()"><div class="s-ic">🎤</div><div class="s-b"><div class="s-t">소리내어 읽고 녹음</div><div class="s-d">퀴즈 풀기 전에 책을 읽어요</div></div><div class="s-r">→</div></button>';
+  any = true;
+  var recDone = !!st.rec;   // 녹음 저장했으면 완료 ✓
+  steps += '<button class="step' + (recDone ? ' done' : '') + '" onclick="startRec()"><div class="s-ic">' + (recDone ? '✓' : '🎤') + '</div><div class="s-b"><div class="s-t">소리내어 읽고 녹음</div><div class="s-d">퀴즈 풀기 전에 책을 읽어요</div></div><div class="s-r">' + (recDone ? '완료 ✓' : '→') + '</div></button>';
   if ((CUR.q1 || []).length) { any = true; steps += stepBtn(1, '📝', '원서퀴즈 1', CUR.q1.length + '문제', 'startQuiz(1)'); }
   if ((CUR.q2 || []).length) { any = true; steps += stepBtn(2, '📖', '원서퀴즈 2', CUR.q2.length + '문제', 'startQuiz(2)'); }
   if (!any) steps += '<div class="muted">아직 만들어진 퀴즈가 없어요.</div>';
@@ -276,13 +278,17 @@ function finishQuiz() {
   var head, color, msg;
   if (!quizPass) { head = '🃏'; color = 'var(--brand)'; msg = '단어 학습 완료!'; }
   else { head = passed ? '🎉' : '💪'; color = passed ? 'var(--good)' : 'var(--bad)'; msg = passed ? '통과했어요!' : ('다시 도전해봐요 (통과 ' + PASS + '점)'); }
+  var retry = (quizPass && !passed)   // 통과 못 한 퀴즈 → 바로 다시 풀기 버튼
+    ? '<button class="primary" onclick="startQuiz(' + quizType + ')">↻ 다시 풀기</button><div style="height:8px"></div>'
+    : '';
   document.getElementById('resultCard').innerHTML =
     '<div style="font-size:40px">' + head + '</div>'
     + '<div class="big" style="color:' + color + '">' + percent + '%</div>'
     + '<div>' + correct + ' / ' + total + ' 정답</div>'
     + '<div class="muted">' + msg + '</div>'
     + '<div style="height:14px"></div>'
-    + '<button class="primary" onclick="backToMenu()">이 책의 다른 퀴즈</button>'
+    + retry
+    + '<button class="' + (retry ? 'opt' : 'primary') + '" onclick="backToMenu()">이 책의 다른 퀴즈</button>'
     + '<div style="height:8px"></div>'
     + '<button class="opt" onclick="loadBooks()">다른 책 고르기</button>';
 }
@@ -311,7 +317,8 @@ function uploadRec() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'upload-recording', student: studentName, book: CUR.id, audioBase64: reader.result })
     }).then(function (r) { return r.json(); }).then(function (d) {
-      document.getElementById('recMsg').textContent = d.ok ? '✅ 녹음 저장됐어요!' : ('오류: ' + d.message);
+      document.getElementById('recMsg').textContent = d.ok ? '✅ 녹음 저장됐어요! (메뉴에 완료 ✓ 표시돼요)' : ('오류: ' + d.message);
+      if (d.ok) { if (!STAT[CUR.id]) STAT[CUR.id] = {}; STAT[CUR.id].rec = true; }   // 메뉴로 돌아가면 완료 표시
     }).catch(function (e) { document.getElementById('recMsg').textContent = '오류: ' + e.message; });
   };
   reader.readAsDataURL(blob);

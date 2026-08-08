@@ -365,9 +365,10 @@ module.exports = async function handler(req, res) {
       (books || []).forEach((b) => { titleOf[b.id] = dispTitle(b); infoOf[b.id] = b; });
       if (req.query.student) {
         const st = req.query.student;
-        const [a, results] = await Promise.all([
+        const [a, results, recs] = await Promise.all([
           sb('mini_assignments?student=eq.' + encodeURIComponent(st) + '&select=book_id'),
           sb('mini_results?student=eq.' + encodeURIComponent(st) + '&select=book_id,score,total,quiz_type,created_at&order=created_at.desc'),
+          sb('mini_recordings?student=eq.' + encodeURIComponent(st) + '&select=book_id'),
         ]);
         // 책|종류(0/1/2)별 최신 결과
         const resMap = {}; (results || []).forEach((r) => {
@@ -375,6 +376,7 @@ module.exports = async function handler(req, res) {
           const k = r.book_id + '|' + t;
           if (!resMap[k]) resMap[k] = r;
         });
+        const recSet = new Set((recs || []).map((r) => r.book_id));   // 녹음한 책 → 완료 ✓ 유지
         const books = (a || []).map((x) => {
           const info = infoOf[x.book_id]; if (!info) return null;
           const status = {};
@@ -382,6 +384,7 @@ module.exports = async function handler(req, res) {
             const rr = resMap[x.book_id + '|' + t];
             status[t] = rr && rr.total ? { percent: Math.round(rr.score / rr.total * 100) } : null;
           });
+          status.rec = recSet.has(x.book_id);
           return { id: info.id, title: dispTitle(info), level: info.level, chapter: info.chapter, status };
         }).filter(Boolean);
         return res.json({ ok: true, books });
