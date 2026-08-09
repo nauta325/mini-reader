@@ -138,17 +138,29 @@ function showGate() {
   var pw = document.getElementById('pw'); if (pw) pw.focus();
 }
 
-// 처음 진입: 비번이 있으면 잠금화면, 없으면(open) 바로 도구
+// 처음 진입: 비번이 있으면 잠금화면, 없으면(없거나 확인 불가) 열되 안내
 function boot() {
   var unlocked = false;
   try { unlocked = localStorage.getItem('mini_admin') === '1'; } catch (e) {}
-  fetch(API + '/api/mini-reader', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-login', passcode: '' }) })
+  fetch(API + '/api/mini-reader?action=admin-status')
     .then(function (r) { return r.json(); }).then(function (d) {
-      hasPass = !(d.ok && d.open);          // open=true 면 비번 없음
-      if (!hasPass) { proceed(); return; }  // 잠금 없음 → 통과
-      if (unlocked) { showTools(); return; }// 이미 로그인돼 있음
-      showGate();                           // 비번 입력 받기
-    }).catch(function () { showGate(); });
+      if (d && d.ok) {                       // 상태 확인 성공
+        hasPass = !!d.hasPass;
+        if (!hasPass) { proceed(); return; } // 비번 없음 → 통과
+        if (unlocked) { showTools(); return; }
+        showGate(); return;                  // 비번 있음 → 입력 받기
+      }
+      openWithWarn('⚠️ 비밀번호 상태를 확인하지 못했어요(서버 응답 오류).');
+    }).catch(function () { openWithWarn('⚠️ 서버 연결을 확인하지 못했어요.'); });
+}
+// 확인 불가여도 선생님이 갇히지 않게: 잠그지 말고 열되 원인 안내
+function openWithWarn(head) {
+  hasPass = false; showTools();
+  document.getElementById('warnBox').innerHTML =
+    '<div class="warn">' + head + ' 잠금 없이 열었어요.<br>'
+    + '학생 로그인·저장도 안 되면 <b>테이블 권한 문제</b>일 수 있어요 → '
+    + '<b>sql/mini-setup.sql을 끝까지 다시 Run</b>(권한 부여 포함)하거나 '
+    + 'Supabase <b>Settings → General → Restart project</b> 후 새로고침하세요.</div>';
 }
 
 function unlock() {

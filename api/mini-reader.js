@@ -177,6 +177,12 @@ module.exports = async function handler(req, res) {
       if (got === need) return res.json({ ok: true });
       return res.json({ ok: false, message: '비밀번호가 달라요' });
     }
+    // ── 관리자 비번이 "설정돼 있는지"만 알려줌 (부팅 시 잠금화면 판단용 · 값은 안 돌려줌) ──
+    if (req.method === 'GET' && action === 'admin-status') {
+      const rows = await sb('mini_settings?key=eq.admin_pass&select=value');
+      const need = (rows && rows[0] && rows[0].value) || '';
+      return res.json({ ok: true, hasPass: !!need });
+    }
     // ── 관리자 비밀번호 설정/변경 ──
     if (req.method === 'POST' && action === 'admin-set-pass') {
       const rows = await sb('mini_settings?key=eq.admin_pass&select=value');

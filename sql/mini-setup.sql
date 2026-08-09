@@ -113,3 +113,16 @@ select
   '[{"question":"What is Biscuit?","options":["A dog","A cat","A boy","A bird"],"answer":0},
     {"question":"Where does Biscuit go?","options":["Park","School","Home","Shop"],"answer":1}]'
 where not exists (select 1 from mini_books);
+
+-- ============================================================
+-- 8) 권한 부여 — 서버 키(service_role)가 mini_ 테이블을 읽고/쓰게
+--    새로 만든 Supabase 프로젝트는 service_role에 테이블 권한이 자동으로
+--    안 붙는 경우가 있어요. 그러면 "permission denied for table ..." (42501)
+--    오류로 학생 로그인·관리자 화면이 막힙니다. 아래로 한 번에 권한을 줍니다.
+-- ============================================================
+grant usage on schema public to service_role;
+grant all privileges on all tables    in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+-- 앞으로 만들 표에도 자동으로 권한이 붙게
+alter default privileges in schema public grant all on tables    to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
